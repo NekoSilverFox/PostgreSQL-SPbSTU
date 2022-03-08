@@ -43,15 +43,15 @@ CREATE TABLE IF NOT EXISTS tb_Ports
 	Country							VARCHAR(255)	NOT NULL,		-- Страна
 	NamePort						VARCHAR(255)	NOT NULL,		-- Название
 	Price								INTEGER				NOT NULL,		-- Цена 1-ого для пребывания
-	GrageID							INTEGER				NOT NULL		-- Категория 类别
+	LevelID							INTEGER				NOT NULL		-- Категория 类别
 );
 
 -- Категория 港口类别
-DROP TABLE IF EXISTS tb_PortGrage;
-CREATE TABLE IF NOT EXISTS tb_PortGrage
+DROP TABLE IF EXISTS tb_PortLevels;
+CREATE TABLE IF NOT EXISTS tb_PortLevels
 (
-	IDGrade							SERIAL,
-	NameGrade						VARCHAR(255)	NOT NULL
+	IDLevel							SERIAL,
+	NameLevel						VARCHAR(255)	NOT NULL
 );
 
 -- Тип корабли
@@ -63,8 +63,8 @@ CREATE TABLE IF NOT EXISTS tb_TypeSeacraft
 );
 
 -- Информации Капитана 船长信息
-DROP TABLE IF EXISTS tb_Captain;
-CREATE TABLE IF NOT EXISTS tb_Captain
+DROP TABLE IF EXISTS tb_Captains;
+CREATE TABLE IF NOT EXISTS tb_Captains
 (
 	IDCaptain						SERIAL,
 	NameCaptain					VARCHAR(255)	NOT NULL,
@@ -77,24 +77,24 @@ ALTER TABLE tb_TypeSeacraft ADD CONSTRAINT PK_TypeSeacraft_IDTypeSeacraft PRIMAR
 ALTER TABLE tb_TypeSeacraft ADD CONSTRAINT UQ_TypeSeacraft_TypeName 			UNIQUE(TypeName);
 
 
-ALTER TABLE tb_Captain ADD CONSTRAINT PK_Captain_IDCaptain PRIMARY KEY(IDCaptain);
-ALTER TABLE tb_Captain ADD CONSTRAINT UQ_Captain_Telephone UNIQUE(Telephone);
+ALTER TABLE tb_Captains ADD CONSTRAINT PK_Captain_IDCaptain PRIMARY KEY(IDCaptain);
+ALTER TABLE tb_Captains ADD CONSTRAINT UQ_Captain_Telephone UNIQUE(Telephone);
 
 
-ALTER TABLE tb_PortGrage ADD CONSTRAINT PK_PortGrage_IDGrade 		PRIMARY KEY(IDGrade);
-ALTER TABLE tb_PortGrage ADD CONSTRAINT UQ_PortGrage_NameGrade	UNIQUE(NameGrade);
+ALTER TABLE tb_PortLevels ADD CONSTRAINT PK_PortGrage_IDLevel 		PRIMARY KEY(IDLevel);
+ALTER TABLE tb_PortLevels ADD CONSTRAINT UQ_PortGrage_NameLevel	UNIQUE(NameLevel);
 
 
 ALTER TABLE tb_Ports ADD CONSTRAINT PK_Ports_IDPort		PRIMARY KEY(IDPort);
 ALTER TABLE tb_Ports ADD CONSTRAINT UQ_Ports_NamePort	UNIQUE(NamePort);
 ALTER TABLE tb_Ports ADD CONSTRAINT CK_Ports_Price		CHECK(Price > 0);
-ALTER TABLE tb_Ports ADD CONSTRAINT FK_Ports_GrageID	FOREIGN KEY(GrageID) REFERENCES tb_PortGrage(IDGrade);
+ALTER TABLE tb_Ports ADD CONSTRAINT FK_Ports_LevelID	FOREIGN KEY(LevelID) REFERENCES tb_PortLevels(IDLevel);
 
 
 ALTER TABLE tb_Seacrafts ADD CONSTRAINT PK_Seacrafts_IDSercraft 				PRIMARY KEY(IDSercraft);
 ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_RegistrationPortID FOREIGN KEY(RegistrationPortID) REFERENCES tb_Ports(IDPort);
 ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_TypeID 						FOREIGN KEY(TypeID)							REFERENCES tb_TypeSeacraft(IDTypeSeacraft);
-ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_CaptainID 					FOREIGN KEY(CaptainID) 					REFERENCES tb_Captain(IDCaptain);
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_CaptainID 					FOREIGN KEY(CaptainID) 					REFERENCES tb_Captains(IDCaptain);
 
 
 ALTER TABLE tb_Arrivals ADD CONSTRAINT 	PK_Arrivals_IDArrival				PRIMARY KEY(IDArrival);
@@ -104,5 +104,12 @@ ALTER TABLE tb_Arrivals ALTER 					ArrivalTime 								SET DEFAULT now();
 ALTER TABLE tb_Arrivals ALTER 					DepartureTime								SET DEFAULT now();
 
 
+--------------------------------- 插入数据 ---------------------------------
+INSERT INTO tb_TypeSeacraft(TypeName) VALUES('Container ship');	-- Контейнеровоз 集装箱船
+INSERT INTO tb_TypeSeacraft(TypeName) VALUES('Bulk carrier');		-- Балкер 散货船
+INSERT INTO tb_TypeSeacraft(TypeName) VALUES('Oil tanker');			-- Нефтяной танкер 油船
+INSERT INTO tb_TypeSeacraft(TypeName) VALUES('LNG carrier');		-- Газово́з 液化气体船
 
-
+INSERT INTO tb_PortLevels(NameLevel) VALUES('Commercial port');		-- Торговый порт 商港
+INSERT INTO tb_PortLevels(NameLevel) VALUES('ndustrial port');		-- Промышленный порт 工业港
+INSERT INTO tb_PortLevels(NameLevel) VALUES('Fishing port');			-- Рыболовные порты 渔港
