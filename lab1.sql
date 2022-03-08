@@ -71,3 +71,38 @@ CREATE TABLE IF NOT EXISTS tb_Captain
 	Birthday						DATE					NOT NULL,
 	Telephone						VARCHAR(18)		NOT NULL
 );
+
+--------------------------------- 约束 ---------------------------------
+ALTER TABLE tb_TypeSeacraft ADD CONSTRAINT PK_TypeSeacraft_IDTypeSeacraft PRIMARY KEY(IDTypeSeacraft);
+ALTER TABLE tb_TypeSeacraft ADD CONSTRAINT UQ_TypeSeacraft_TypeName 			UNIQUE(TypeName);
+
+
+ALTER TABLE tb_Captain ADD CONSTRAINT PK_Captain_IDCaptain PRIMARY KEY(IDCaptain);
+ALTER TABLE tb_Captain ADD CONSTRAINT UQ_Captain_Telephone UNIQUE(Telephone);
+
+
+ALTER TABLE tb_PortGrage ADD CONSTRAINT PK_PortGrage_IDGrade 		PRIMARY KEY(IDGrade);
+ALTER TABLE tb_PortGrage ADD CONSTRAINT UQ_PortGrage_NameGrade	UNIQUE(NameGrade);
+
+
+ALTER TABLE tb_Ports ADD CONSTRAINT PK_Ports_IDPort		PRIMARY KEY(IDPort);
+ALTER TABLE tb_Ports ADD CONSTRAINT UQ_Ports_NamePort	UNIQUE(NamePort);
+ALTER TABLE tb_Ports ADD CONSTRAINT CK_Ports_Price		CHECK(Price > 0);
+ALTER TABLE tb_Ports ADD CONSTRAINT FK_Ports_GrageID	FOREIGN KEY(GrageID) REFERENCES tb_PortGrage(IDGrade);
+
+
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT PK_Seacrafts_IDSercraft 				PRIMARY KEY(IDSercraft);
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_RegistrationPortID FOREIGN KEY(RegistrationPortID) REFERENCES tb_Ports(IDPort);
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_TypeID 						FOREIGN KEY(TypeID)							REFERENCES tb_TypeSeacraft(IDTypeSeacraft);
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_CaptainID 					FOREIGN KEY(CaptainID) 					REFERENCES tb_Captain(IDCaptain);
+
+
+ALTER TABLE tb_Arrivals ADD CONSTRAINT 	PK_Arrivals_IDArrival				PRIMARY KEY(IDArrival);
+ALTER TABLE tb_Arrivals ADD CONSTRAINT 	FK_Arrivals_PortID					FOREIGN KEY(PortID)			REFERENCES tb_Ports(IDPort);
+ALTER TABLE tb_Arrivals ADD CONSTRAINT 	FK_Arrivals_SeacraftID			FOREIGN KEY(SeacraftID)	REFERENCES tb_Seacrafts(IDSercraft);
+ALTER TABLE tb_Arrivals ALTER 					ArrivalTime 								SET DEFAULT now();
+ALTER TABLE tb_Arrivals ALTER 					DepartureTime								SET DEFAULT now();
+
+
+
+
