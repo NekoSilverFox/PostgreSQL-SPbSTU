@@ -1,4 +1,6 @@
--- 输出到达 `圣彼得堡` 港口的船舶信息，并按照到达时间升序排序
+-- 输出到达 `ST.PETERSBURG` 港口的船舶信息，并按照到达时间升序排序
+-- Вывести информацию о судах, прибывающих в порт `ST.PETERSBURG`,
+-- отсортированную в порядке возрастания времени прибытия
 SELECT arrivaltime, nameseacraft, nametypeseacraft, displacement, NameRegPort, namecaptain
 	FROM tb_ports
 		INNER JOIN tb_arrivals
@@ -16,6 +18,7 @@ SELECT arrivaltime, nameseacraft, nametypeseacraft, displacement, NameRegPort, n
 	
 	
 -- 注册地是中国且到达阿塞拜疆次数大于 2 的船只
+-- Корабль, зарегистрированные в Китае и прибывающие в Азербайджан более 2 раз
 SELECT IDSeacraft, NameSeacraft, COUNT(SeacraftID) AS Times
 	FROM tb_arrivals
 		INNER JOIN tb_seacrafts 
@@ -29,6 +32,7 @@ SELECT IDSeacraft, NameSeacraft, COUNT(SeacraftID) AS Times
 																			
 
 -- 名字第二个字母是 `e` 的船长，以及到达各个码头的次数。并只输出第 10 到 30 条记录
+-- Капитаны со второй буквой своего имени `e` и количество раз, когда они прибывали к каждому пирсу. и выводить только записи с 10-й по 30-ю
 SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.NamePort, COUNT(tb_ports.IDPort)
 	FROM tb_seacrafts
 		INNER JOIN tb_arrivals
@@ -44,6 +48,7 @@ SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.NamePort, COU
 
 
 -- 将注册在巴库的排水量小于 30 0000 的 Container ship 的排水量全部增加 1000 吨
+-- увеличить водоизмещение всех зарегистрированных в Баку контейнеровозов водоизмещением менее 30 000 тонн на 1 000 тонн
 UPDATE tb_seacrafts
 	SET Displacement = Displacement + 1000
 	WHERE IDSeacraft IN (
@@ -57,6 +62,7 @@ SELECT * FROM tb_seacrafts WHERE IDSeacraft=2
 
 
 -- 将所有 2020 年之后到达巴库的船只的离开时间推迟一个月
+-- Отложить на один месяц отплытие всех корабли, прибывающих в Баку после 2020 года
 UPDATE tb_arrivals
 	SET LeaveTime = LeaveTime::TIMESTAMP + '1 month'
 	WHERE IDArrival IN (
@@ -68,7 +74,8 @@ SELECT * FROM tb_arrivals WHERE IDArrival=15
 		
 
 
--- 删除所有在巴库停留时间大于 7 个月的记录（只删除第一行）
+-- 删除在巴库停留时间大于 7 个月的记录（只删除第一行）
+-- Удалить записи, которые находились в Баку более 7 месяцев (только первая строка)
 DELETE FROM tb_arrivals 
 	WHERE IDArrival IN (
 											SELECT IDArrival FROM tb_arrivals WHERE (LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP) > '7 month' LIMIT 1)

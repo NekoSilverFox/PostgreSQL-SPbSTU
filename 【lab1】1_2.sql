@@ -1,4 +1,5 @@
 -- IF EXISTS(SELECT * FROM pg_catalog.pg_database u WHERE u.datname='db_Port')
+-- pg_dump -U postgres db_port -f /Users/fox/雪狸的文件/Programma/db-port-project/db_bk.sql
 	
 -- 创建数据库
 DROP DATABASE IF EXISTS db_Port;
