@@ -28,8 +28,8 @@ SELECT IDSeacraft, NameSeacraft, COUNT(SeacraftID) AS Times
 	ORDER BY IDSeacraft
 																			
 
--- 名字第二个字母是 `e` 的船长，以及到达各个码头的次数
-SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.IDPort, tb_ports.NamePort, COUNT(tb_ports.IDPort)
+-- 名字第二个字母是 `e` 的船长，以及到达各个码头的次数。并只输出第 10 到 30 条记录
+SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.NamePort, COUNT(tb_ports.IDPort)
 	FROM tb_seacrafts
 		INNER JOIN tb_arrivals
 			ON tb_arrivals.SeacraftID=tb_seacrafts.IDSeacraft
@@ -39,15 +39,39 @@ SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.IDPort, tb_po
 			ON tb_ports.IDPort=tb_arrivals.PortID
 	GROUP BY tb_ports.Country, tb_ports.IDPort, tb_ports.NamePort, tb_NameCaptainWithE.NameCaptain
 	ORDER BY tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.IDPort
-
-SELECT * from tb_captains
-
+	LIMIT 20 OFFSET 9
 
 
--- 将注册在巴库的船的排水量全部增加 1000 吨
+
+-- 将注册在巴库的排水量小于 30 0000 的 Container ship 的排水量全部增加 1000 吨
+UPDATE tb_seacrafts
+	SET Displacement = Displacement + 1000
+	WHERE IDSeacraft IN (
+												SELECT IDSeacraft
+													FROM tb_seacrafts
+													WHERE 
+														AND TypeID=(SELECT IDTypeSeacraft FROM tb_typeseacraft WHERE NameTypeSeacraft='Container ship'))
+	
+	
+SELECT * FROM tb_seacrafts WHERE IDSeacraft=2
+
 
 -- 将所有 2020 年之后到达巴库的船只的离开时间推迟一个月
+UPDATE tb_arrivals
+	SET LeaveTime = LeaveTime::TIMESTAMP + '1 month'
+	WHERE IDArrival IN (
+												SELECT IDArrival FROM tb_arrivals
+													WHERE PortID=(SELECT IDPort FROM tb_ports WHERE NamePort='baku')
+														AND ArrivalTime > '2020-01-01'::TIMESTAMP)
+		
+SELECT * FROM tb_arrivals WHERE IDArrival=15
+		
 
--- 删除所有 2000 年 2 月之前到达巴库运油船只的记录
 
+-- 删除所有在巴库停留时间大于 7 个月的记录（只删除第一行）
+DELETE FROM tb_arrivals 
+	WHERE IDArrival IN (
+											SELECT IDArrival FROM tb_arrivals WHERE (LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP) > '7 month' LIMIT 1)
+	
+SELECT * FROM tb_arrivals WHERE (LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP) > '7 month'
 
