@@ -1,6 +1,9 @@
 -- 输出到达 `ST.PETERSBURG` 港口的船舶信息，并按照到达时间升序排序
--- Вывести информацию о судах, прибывающих в порт `ST.PETERSBURG`,
--- отсортированную в порядке возрастания времени прибытия
+-- Вывести информацию о судах, прибывающих в порт `ST.PETERSBURG`, отсортированную в порядке возрастания времени прибытия
+
+WITH RegPort AS (
+	SELECT idport AS IDRegPort, nameport AS NameRegPort FROM tb_ports
+)
 SELECT arrivaltime, nameseacraft, nametypeseacraft, displacement, NameRegPort, namecaptain
 	FROM tb_ports
 		INNER JOIN tb_arrivals
@@ -9,7 +12,7 @@ SELECT arrivaltime, nameseacraft, nametypeseacraft, displacement, NameRegPort, n
 			ON tb_seacrafts.idseacraft=tb_arrivals.seacraftid
 		INNER JOIN tb_typeseacraft
 			ON tb_typeseacraft.idtypeseacraft=tb_seacrafts.typeid
-		INNER JOIN (SELECT idport AS IDRegPort, nameport AS NameRegPort FROM tb_ports) AS RegPort
+		INNER JOIN RegPort
 			ON RegPort.IDRegPort=tb_seacrafts.RegPortID
 		INNER JOIN tb_captains
 			ON tb_captains.idcaptain=tb_seacrafts.captainid
@@ -19,7 +22,7 @@ SELECT arrivaltime, nameseacraft, nametypeseacraft, displacement, NameRegPort, n
 	
 -- 注册地是中国且到达阿塞拜疆次数大于 2 的船只
 -- Корабль, зарегистрированные в Китае и прибывающие в Азербайджан более 2 раз
-SELECT IDSeacraft, NameSeacraft, COUNT(SeacraftID) AS Times
+SELECT IDSeacraft, NameSeacraft, COUNT(IDSeacraft) AS Times
 	FROM tb_arrivals
 		INNER JOIN tb_seacrafts 
 			ON tb_seacrafts.IDSeacraft=tb_arrivals.SeacraftID
@@ -33,11 +36,14 @@ SELECT IDSeacraft, NameSeacraft, COUNT(SeacraftID) AS Times
 
 -- 名字第二个字母是 `e` 的船长，以及到达各个码头的次数。并只输出第 10 到 30 条记录
 -- Капитаны со второй буквой своего имени `e` и количество раз, когда они прибывали к каждому пирсу. и выводить только записи с 10-й по 30-ю
+WITH tb_NameCaptainWithE AS (
+	SELECT * FROM tb_captains WHERE NameCaptain LIKE '_e%'
+)
 SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.NamePort, COUNT(tb_ports.IDPort)
 	FROM tb_seacrafts
 		INNER JOIN tb_arrivals
 			ON tb_arrivals.SeacraftID=tb_seacrafts.IDSeacraft
-		INNER JOIN (SELECT * FROM tb_captains WHERE NameCaptain LIKE '_e%') AS tb_NameCaptainWithE
+		INNER JOIN tb_NameCaptainWithE
 			ON tb_NameCaptainWithE.IDCaptain=tb_seacrafts.CaptainID
 		INNER JOIN tb_ports
 			ON tb_ports.IDPort=tb_arrivals.PortID
@@ -54,10 +60,9 @@ UPDATE tb_seacrafts
 	WHERE IDSeacraft IN (
 												SELECT IDSeacraft
 													FROM tb_seacrafts
-													WHERE 
+													WHERE RegPortID=(SELECT IDPort FROM tb_ports WHERE NamePort='baku')
 														AND TypeID=(SELECT IDTypeSeacraft FROM tb_typeseacraft WHERE NameTypeSeacraft='Container ship'))
-	
-	
+														
 SELECT * FROM tb_seacrafts WHERE IDSeacraft=2
 
 
