@@ -76,7 +76,7 @@ UPDATE tb_arrivals
 														AND ArrivalTime > '2020-01-01'::TIMESTAMP)
 		
 SELECT * FROM tb_arrivals WHERE IDArrival=15
-		
+
 
 
 -- 删除在巴库停留时间大于 7 个月的记录（只删除第一行）
@@ -87,3 +87,11 @@ DELETE FROM tb_arrivals
 	
 SELECT * FROM tb_arrivals WHERE (LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP) > '7 month'
 
+-- [+] over()
+--  每个港口收费与它们国家的平均值作对比
+-- Сравнение тарифов каждого порта со средним уровнем по стране
+
+SELECT IDPort, Country, NamePort, Price, AVG(Price) OVER (PARTITION BY Country)
+	FROM tb_ports
+	ORDER BY Country, NamePort
+	
