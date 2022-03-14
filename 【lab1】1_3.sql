@@ -87,11 +87,12 @@ DELETE FROM tb_arrivals
 	
 SELECT * FROM tb_arrivals WHERE (LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP) > '7 month'
 
+
 -- [+] over()
 --  每个港口收费与它们国家的平均值作对比
--- Сравнение тарифов каждого порта со средним уровнем по стране
-
-SELECT IDPort, Country, NamePort, Price, AVG(Price) OVER (PARTITION BY Country)
+-- Сравнение тарифов каждого порта со средним значением тарифов по стране
+SELECT IDPort, Country, NamePort, Price,
+				AVG(Price) OVER (PARTITION BY Country)
 	FROM tb_ports
 	ORDER BY Country, NamePort
 	
