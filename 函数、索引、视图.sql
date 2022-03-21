@@ -14,5 +14,9 @@ CREATE OR REPLACE FUNCTION get_arrival_num(INTEGER) RETURNS VARCHAR
 SELECT IDArrival, get_arrival_num(IDArrival) FROM tb_arrivals 
 
 
+--------------------------------- 索引 ---------------------------------
+CREATE INDEX IX_Arrival ON tb_arrivals(IDArrival)
+DROP INDEX IX_Arrival
+
 
 		
