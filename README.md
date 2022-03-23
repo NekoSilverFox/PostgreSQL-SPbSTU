@@ -187,6 +187,25 @@
 
 
 
+
+
+序列化异常
+
+| **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;` <br />`SHOW TRANSACTION_ISOLATION;` <br />>>> *repeatable read* |                                                              |
+|                                                              | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;` <br />`SHOW TRANSACTION_ISOLATION;` <br />>>> *repeatable read* |
+| `SELECT * FROM tb_portlevels;`<br /><br />>>><br />idlevel  \|   namelevel<br />---------+-----------------<br />       1 \|Commercial port<br />       2 \|ndustrial port<br />       3 \|Fishing port |                                                              |
+| `INSERT INTO tb_portlevels(namelevel) VALUES('first');`      |                                                              |
+|                                                              | `INSERT INTO tb_portlevels(namelevel) VALUES('second');`     |
+|                                                              | `COMMIT;`                                                    |
+| `COMMIT;`                                                    |                                                              |
+| `SELECT * FROM tb_portlevels;`<br /><br />>>><br />idlevel  \|   namelevel<br />---------+-----------------<br />       1 \|Commercial port<br />       2 \|ndustrial port<br />       3 \|Fishing port<br />       6 \|should4<br />       7 \|should5 |                                                              |
+
+
+
+
+
 ---
 
 
@@ -245,4 +264,21 @@
     | `SELECT price FROM tb_ports WHERE nameport='baku2';`<br /><br />>>>==[-] Фантом==<br />(0 rows) |                                                              |
     | `DELETE FROM tb_ports WHERE nameport='baku2';`               |                                                              |
     | `COMMIT;`                                                    |                                                              |
+
+
+
+- 序列化异常
+
+    | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+    | ------------------------------------------------------------ | ------------------------------------------------------------ |
+    | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |                                                              |
+    |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |
+    | `SELECT * FROM tb_portlevels;`<br /><br />>>><br />idlevel  \|   namelevel<br />---------+-----------------<br />       1 \|Commercial port<br />       2 \|ndustrial port<br />       3 \|Fishing port |                                                              |
+    | `INSERT INTO tb_portlevels(namelevel) VALUES('should4');`    |                                                              |
+    |                                                              | `INSERT INTO tb_portlevels(namelevel) VALUES('should5');`    |
+    |                                                              | `COMMIT;`                                                    |
+    | `COMMIT;`                                                    |                                                              |
+    | `SELECT * FROM tb_portlevels;`<br /><br />>>><br />idlevel  \|   namelevel<br />---------+-----------------<br />       1 \|Commercial port<br />       2 \|ndustrial port<br />       3 \|Fishing port<br />       6 \|should4<br />       7 \|should5 |                                                              |
+    
+    
 
