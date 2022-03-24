@@ -4,16 +4,18 @@
 
 ## Результат
 
-| **Контроль целостности данных** | грязные чтении | неповторяющиеся чтении | Потерянные изменении<br />(Second lost update) | фантом | **Аномалия сериализации** |
-| ------------------------------- | -------------- | ---------------------- | ---------------------------------------------- | ------ | ------------------------- |
-| `serializable`                  | -              | -                      | -                                              | -      | -                         |
-| `repeatable read`               | -              | -                      | -                                              | -      | +                         |
-| `read commited`                 | -              | +                      | +                                              | +      | +                         |
-| `read uncommited`               | -              | +                      | +                                              | +      | +                         |
+| **Контроль целостности данных** | грязные чтении | неповторяющиеся чтении | Потерянные изменении | фантом | **Аномалия сериализации** |
+| ------------------------------- | -------------- | ---------------------- | -------------------- | ------ | ------------------------- |
+| `serializable`                  | -              | -                      | -                    | -      | -                         |
+| `repeatable read`               | -              | -                      | -                    | -      | +                         |
+| `read commited`                 | -              | +                      | -                    | +      | +                         |
+| `read uncommited`               | -              | +                      | -                    | +      | +                         |
 
 
 
 ## Аномалия сериализации
+
+We can conclude that Postgres uses a `dependencies detection` mechanism to detect potential `read phenomena` and stop them by throwing out an error.
 
 > Dan R. K. Ports and Kevin Grittner. 2012. Serializable Snapshot Isolation in PostgreSQL. Proceedings of the VLDB Endowment vol. 5 (12) , August 2012 
 > ————————————————
@@ -21,6 +23,8 @@
 > https://arxiv.org/pdf/1208.4179.pdf
 >
 > https://postgrespro.ru/docs/postgrespro/14/transaction-iso
+>
+> https://dev.to/techschoolguru/understand-isolation-levels-read-phenomena-in-mysql-postgres-c2e#isolation-levels-in-postgres
 >
 > https://blog.csdn.net/gp_community/article/details/109772336
 
