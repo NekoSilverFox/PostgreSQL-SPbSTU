@@ -402,3 +402,157 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     
     
 
+
+
+
+
+---
+
+
+
+# 【lab】2.1
+
+1. **Создать пользователя test** 
+
+```sql
+-- CREATE USER fox;
+CREATE ROLE test;
+ALTER ROLE test PASSWORD '123';
+```
+
+<img src="doc/pic/README/image-20220324211259582.png" alt="image-20220324211259582" style="zoom:44%;" />
+
+
+
+2. **Добавление привилегий для входа в базу данных**
+
+    ```sql
+    ALTER ROLE test LOGIN;
+    ```
+
+    <img src="doc/pic/README/image-20220324211432812.png" alt="image-20220324211432812" style="zoom:40%;" />
+
+    
+
+3. **Выдать ему доступ к базе данных**
+
+    - Присваиваются права `SELECT`, `INSERT`, `UPDATE`
+
+        ```sql
+        GRANT SELECT, INSERT, UPDATE ON tb_portlevels TO test;
+        ```
+
+        - ![image-20220324214127593](doc/pic/README/image-20220324214127593.png)
+
+        
+
+        - ![image-20220324215214166](doc/pic/README/image-20220324215214166.png)
+
+            
+
+        - ![image-20220324214054583](doc/pic/README/image-20220324214054583.png)
+
+            
+
+        - ![image-20220324215341921](doc/pic/README/image-20220324215341921-8148027.png)
+
+        
+
+        
+
+        
+
+        
+
+        
+
+    - Присваиваются права `SELECT` и `UPDATE `
+
+        ```sql
+        GRANT SELECT, UPDATE ON tb_typeseacraft TO test;
+        ```
+
+        - ![image-20220324215447762](doc/pic/README/image-20220324215447762.png)
+        - ![image-20220324215736741](doc/pic/README/image-20220324215736741.png)
+        - ![image-20220324215830246](doc/pic/README/image-20220324215830246.png)
+        - ![image-20220324215853702](doc/pic/README/image-20220324215853702.png)
+
+        
+
+    - Присваивается только право `SELECT`
+
+        ```sql
+        GRANT SELECT ON tb_ports TO test;
+        ```
+
+        
+
+    - Присвоить новому пользователю право доступа (`SELECT`) к одному из представлений
+
+        ```sql
+        -- Вывод списка подробной информации о порте
+        CREATE OR REPLACE VIEW VW_Ports
+        AS
+        SELECT IDPort, Country, NamePort, NameLevel, Price, COUNT(IDPort) AS NumArrivals
+        	FROM tb_arrivals
+        		INNER JOIN tb_ports ON tb_ports.idport=tb_arrivals.portid
+        		INNER JOIN tb_portlevels ON tb_ports.levelid=tb_portlevels.idlevel
+        	GROUP BY IDPort, Country, NamePort, NameLevel, Price 
+        	ORDER BY IDPort ASC;
+        
+        GRANT SELECT ON VW_Ports TO test;
+        ```
+
+        ![image-20220324232945852](doc/pic/README/image-20220324232945852.png)
+
+        ![image-20220324233025589](doc/pic/README/image-20220324233025589.png)
+
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
