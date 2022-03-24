@@ -4,12 +4,12 @@
 
 ## Результат
 
-| **Контроль целостности данных** | грязные чтении | неповторяющиеся чтении | фантом | **Аномалия сериализации** |
-| ------------------------------- | -------------- | ---------------------- | ------ | ------------------------- |
-| `serializable`                  | -              | -                      | -      | -                         |
-| `repeatable read`               | -              | -                      | -      | +                         |
-| `read commited`                 | -              | +                      | +      | +                         |
-| `read uncommited`               | -              | +                      | +      | +                         |
+| **Контроль целостности данных** | грязные чтении | неповторяющиеся чтении | Потерянные изменении<br />(Second lost update) | фантом | **Аномалия сериализации** |
+| ------------------------------- | -------------- | ---------------------- | ---------------------------------------------- | ------ | ------------------------- |
+| `serializable`                  | -              | -                      | -                                              | -      | -                         |
+| `repeatable read`               | -              | -                      | -                                              | -      | +                         |
+| `read commited`                 | -              | +                      | +                                              | +      | +                         |
+| `read uncommited`               | -              | +                      | +                                              | +      | +                         |
 
 
 
@@ -40,14 +40,14 @@
 
 - **[-] грязные чтении & [+] неповторяющиеся чтении**
 
-    | Параллельный сеанс 1                                         | **Параллельный сеанс** 2                                     |
+    | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
     | ------------------------------------------------------------ | ------------------------------------------------------------ |
     | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |                                                              |
     |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |
     | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
     |                                                              | `UPDATE tb_ports SET price=2000 WHERE nameport='baku';`      |
     |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />2000 |
-    | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[+] грязные чтении==<br />1000 |                                                              |
+    | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] грязные чтении==<br />1000 |                                                              |
     |                                                              | `COMMIT;`                                                    |
     | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] неповторяющиеся чтении==<br />2000 |                                                              |
     | `COMMIT;`                                                    |                                                              |
@@ -56,17 +56,34 @@
 
 - **[-] Потерянные изменении**
 
-  | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
-  | ------------------------------------------------------------ | ------------------------------------------------------------ |
-  | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |                                                              |
-  |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |
-  | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
-  |                                                              | `UPDATE tb_ports SET price=2000 WHERE nameport='baku';`      |
-  |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />2000 |
-  | `UPDATE tb_ports SET price=3000 WHERE nameport='baku';`<br /><br />>>> <br />БЛОКИРУЕТСЯ |                                                              |
-  |                                                              | `COMMIT;`                                                    |
-  | `COMMIT;`                                                    |                                                              |
-  |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении==<br />3000 |
+  - **[-] Потерянные изменении | Lost update**
+  
+  - | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+      | ------------------------------------------------------------ | ------------------------------------------------------------ |
+      | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |                                                              |
+      |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |
+      | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+      |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+      |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+      |                                                              | `COMMIT;`                                                    |
+      | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';` |                                                              |
+      | `ROLLBACK;`                                                  |                                                              |
+      |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
+  
+      **[-] Потерянные изменении | Second lost update**
+  
+      | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+      | ------------------------------------------------------------ | ------------------------------------------------------------ |
+      | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |                                                              |
+      |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read uncommitted* |
+      | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+      |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+      |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+      | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';`<br /><br />>>> <br />БЛОКИРУЕТСЯ |                                                              |
+      |                                                              | `COMMIT;`                                                    |
+      | `COMMIT;`                                                    |                                                              |
+      |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />1000 |
+  
 
 
 
@@ -136,17 +153,33 @@
 
 - **[-] Потерянные изменении**
 
-    | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
-    | ------------------------------------------------------------ | ------------------------------------------------------------ |
-    | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read committed* |                                                              |
-    |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read committed* |
-    | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
-    |                                                              | `UPDATE tb_ports SET price=2000 WHERE nameport='baku';`      |
-    |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />2000 |
-    | `UPDATE tb_ports SET price=3000 WHERE nameport='baku';`<br /><br />>>> <br />**БЛОКИРУЕТСЯ** |                                                              |
-    |                                                              | `COMMIT;`                                                    |
-    | `COMMIT;`                                                    |                                                              |
-    |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении==<br />3000 |
+    - **[-] Потерянные изменении | Lost update**
+
+    - | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+        | ------------------------------------------------------------ | ------------------------------------------------------------ |
+        | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read committed* |                                                              |
+        |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read committed* |
+        | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+        |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+        |                                                              | `COMMIT;`                                                    |
+        | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';` |                                                              |
+        | `ROLLBACK;`                                                  |                                                              |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
+
+        **[-] Потерянные изменении | Second lost update**
+
+        | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+        | ------------------------------------------------------------ | ------------------------------------------------------------ |
+        | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read committed* |                                                              |
+        |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read committed* |
+        | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+        |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+        | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';`<br /><br />>>> <br />БЛОКИРУЕТСЯ |                                                              |
+        |                                                              | `COMMIT;`                                                    |
+        | `COMMIT;`                                                    |                                                              |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />1000 |
 
 
 
@@ -211,20 +244,36 @@
 
 
 
-- **[+] Потерянные изменении**
+- **[-] Потерянные изменении**
 
-    | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
-    | ------------------------------------------------------------ | ------------------------------------------------------------ |
-    | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*repeatable read* |                                                              |
-    |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*repeatable read* |
-    | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
-    |                                                              | `UPDATE tb_ports SET price=2000 WHERE nameport='baku';`      |
-    |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />2000 |
-    | `UPDATE tb_ports SET price=3000 WHERE nameport='baku';`<br /><br />>>> <br />**БЛОКИРУЕТСЯ** |                                                              |
-    |                                                              | `COMMIT;`                                                    |
-    | >>><br />ERROR:  could not serialize access due to concurrent update |                                                              |
-    | `ROLLBACK;`                                                  |                                                              |
-    |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[+] Потерянные изменении==<br />2000 |
+    - **[-] Потерянные изменении | Lost update**
+
+    - | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+        | ------------------------------------------------------------ | ------------------------------------------------------------ |
+        | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*repeatable read* |                                                              |
+        |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*repeatable read* |
+        | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+        |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+        |                                                              | `COMMIT;`                                                    |
+        | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';`<br /><br />>>> <br />ERROR:  could not serialize access due to concurrent update |                                                              |
+        | `ROLLBACK;`                                                  |                                                              |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
+
+        **[-] Потерянные изменении | Second lost update**
+
+        | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+        | ------------------------------------------------------------ | ------------------------------------------------------------ |
+        | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*repeatable read* |                                                              |
+        |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*repeatable read* |
+        | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+        |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+        | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';`<br /><br />>>> <br />БЛОКИРУЕТСЯ |                                                              |
+        |                                                              | `COMMIT;`                                                    |
+        | >>><br />ERROR:  could not serialize access due to concurrent update |                                                              |
+        | `COMMIT;`<br /><br />>>><br />ROLLBACK                       |                                                              |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
 
 
 
@@ -285,22 +334,36 @@
 
 
 
-- **[+] Потерянные изменении**
+- **[-] Потерянные изменении**
 
-    | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
-    | ------------------------------------------------------------ | ------------------------------------------------------------ |
-    | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |                                                              |
-    |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |
-    | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
-    |                                                              | `UPDATE tb_ports SET price=2000 WHERE nameport='baku';`      |
-    |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />2000 |
-    | `UPDATE tb_ports SET price=3000 WHERE nameport='baku';`<br /><br />>>> <br />**БЛОКИРУЕТСЯ** |                                                              |
-    |                                                              | `COMMIT;`                                                    |
-    | >>><br />ERROR:  could not serialize access due to concurrent update |                                                              |
-    | `ROLLBACK;`                                                  |                                                              |
-    |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[+] Потерянные изменении==<br />2000 |
+    - **[-] Потерянные изменении | Lost update**
 
+    - | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+        | ------------------------------------------------------------ | ------------------------------------------------------------ |
+        | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |                                                              |
+        |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |
+        | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+        |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+        |                                                              | `COMMIT;`                                                    |
+        | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';`<br /><br />>>> <br />ERROR:  could not serialize access due to concurrent update |                                                              |
+        | `ROLLBACK;`                                                  |                                                              |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
 
+        **[-] Потерянные изменении | Second lost update**
+
+        | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
+        | ------------------------------------------------------------ | ------------------------------------------------------------ |
+        | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |                                                              |
+        |                                                              | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |
+        | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />1000 |                                                              |
+        |                                                              | `UPDATE tb_ports SET price=price-100 WHERE nameport='baku';` |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
+        | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';`<br /><br />>>> <br />БЛОКИРУЕТСЯ |                                                              |
+        |                                                              | `COMMIT;`                                                    |
+        | >>><br />ERROR:  could not serialize access due to concurrent update |                                                              |
+        | `COMMIT;`<br /><br />>>><br />ROLLBACK                       |                                                              |
+        |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
 
 
 
