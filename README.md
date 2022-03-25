@@ -503,12 +503,36 @@ ALTER ROLE test PASSWORD '123';
         GRANT SELECT ON VW_Ports TO test;
         ```
 
-        ![image-20220324232945852](doc/pic/README/image-20220324232945852.png)
+        <img src="doc/pic/README/image-20220324232945852.png" alt="image-20220324232945852" style="zoom:50%;" />
 
-        ![image-20220324233025589](doc/pic/README/image-20220324233025589.png)
+        <img src="doc/pic/README/image-20220324233025589.png" alt="image-20220324233025589" style="zoom:50%;" />
+        
+    - Создать стандартную роль уровня базы данных, присвоить ей право доступа (`UPDATE` на некоторые столбцы) к одному из представлений, назначить новому пользователю созданную роль.
 
-    
-    
+        ```sql
+        CREATE ROLE update_vw_test;
+        GRANT UPDATE (NameSeacraft) ON vw_seacrafts TO update_vw_test;
+        GRANT update_vw_test TO test;
+        ```
+
+        <img src="doc/pic/README/image-20220324235621158.png" alt="image-20220324235621158" style="zoom:50%;" />
+
+        <img src="doc/pic/README/image-20220325000112121.png" alt="image-20220325000112121" style="zoom:50%;" />
+
+        
+
+4. Удалите все разрешения у пользователя и удалите пользователя
+
+    ```sql
+    REVOKE ALL ON DATABASE db_port from test;
+    DROP ROLE test;
+    ```
+
+
+
+
+
+
 
 
 

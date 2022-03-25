@@ -29,6 +29,7 @@ SELECT IDPort, Country, NamePort, NameLevel, Price, COUNT(IDPort) AS NumArrivals
 
 SELECT * FROM VW_Ports;
 
+
 ----------------------------- управления доступом -----------------------------
 -- CREATE USER fox;
 CREATE ROLE test;
@@ -41,6 +42,11 @@ GRANT SELECT, UPDATE ON tb_typeseacraft TO test;
 GRANT SELECT ON tb_ports TO test;
 GRANT SELECT ON VW_Ports TO test;
 
+CREATE ROLE update_vw_test;
+GRANT UPDATE (NameSeacraft) ON vw_seacrafts TO update_vw_test;
+GRANT update_vw_test TO test;
+
+
 -- For user `test`
 SELECT * FROM tb_portlevels;
 INSERT INTO tb_portlevels(IDLevel, NameLevel) VALUES(4, 'test');
@@ -52,9 +58,16 @@ INSERT INTO tb_typeseacraft(IDtypeseacraft, Nametypeseacraft) VALUES(5, 'test');
 UPDATE tb_typeseacraft SET Nametypeseacraft='tesssst' WHERE IDtypeseacraft=5;
 DELETE FROM tb_typeseacraft WHERE IDtypeseacraft=5;
 
-
-
-
-
-
+SELECT NameSeacraft FROM vw_seacrafts;
+UPDATE vw_seacrafts SET NameSeacraft='titannic' WHERE idseacraft=1;
+UPDATE tb_seacrafts SET NameSeacraft='titannic' WHERE idseacraft=1;
+--
+REVOKE ALL ON DATABASE db_port from test;
 DROP ROLE test;
+
+
+REVOKE ALL ON DATABASE db_port from update_vw_test;
+DROP ROLE update_vw_test;
+
+
+
