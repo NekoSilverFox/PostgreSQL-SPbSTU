@@ -1,4 +1,80 @@
 --------------------------------- Функция ---------------------------------
+-- 评估船舶滞留码头时间的等级
+-- Оценка уровня времени, в течение которого корабль простаивает в порте
+CREATE OR REPLACE FUNCTION fc_PortTimeChecker(INTEGER) RETURNS TEXT 
+	LANGUAGE plpgsql
+	AS $$
+	DECLARE 
+		t_ArrivalTime TIMESTAMP := (SELECT ArrivalTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
+		t_LeaveTime TIMESTAMP := (SELECT LeaveTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
+		Days INTEGER;
+		msg TEXT;
+	BEGIN
+		IF (t_LeaveTime IS NULL) THEN 
+			RAISE EXCEPTION '[ERROR] LeaveTime can not be NULL';
+		END IF;
+		
+		Days := extract(day from t_LeaveTime - t_ArrivalTime);
+		CASE
+			WHEN Days BETWEEN 0 AND 30 THEN
+				msg := 'Short';
+			WHEN Days BETWEEN 30 AND 100 THEN
+				msg := 'Normal';
+			WHEN Days BETWEEN 100 AND 150 THEN
+				msg := 'Long';
+			ELSE
+				msg := 'Very long';
+		END CASE;
+		
+		RETURN msg;
+	END;
+	$$;
+
+SELECT fc_PortTimeChecker(1)
+SELECT fc_PortTimeChecker(2)
+
+-- 【LOOP】评估船舶滞留码头时间的等级
+-- 【LOOP】Оценка уровня времени, в течение которого корабль простаивает в порте
+CREATE OR REPLACE FUNCTION fc_AllPortTimeChecker() RETURNS TEXT 
+	LANGUAGE plpgsql
+	AS $$
+	DECLARE 
+ 		t_ArrivalTime TIMESTAMP;
+ 		t_LeaveTime TIMESTAMP;
+		StartNum INTEGER := (SELECT min(idarrival) FROM tb_arrivals);
+		StopNum INTEGER := (SELECT max(idarrival) FROM tb_arrivals);
+		Days INTEGER;
+		msg TEXT;
+	BEGIN
+		FOR counter IN StartNum .. StopNum LOOP
+				IF (t_LeaveTime IS NULL) THEN 
+					RAISE NOTICE 'IDArrival: % con not handle', counter;
+				END IF;		
+						
+				t_ArrivalTime := (SELECT ArrivalTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=counter);
+				t_LeaveTime := (SELECT LeaveTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=counter);
+				Days := extract(day from t_LeaveTime - t_ArrivalTime);
+				CASE
+					WHEN Days BETWEEN 0 AND 30 THEN
+						msg := 'Short';
+					WHEN Days BETWEEN 30 AND 100 THEN
+						msg := 'Normal';
+					WHEN Days BETWEEN 100 AND 150 THEN
+						msg := 'Long';
+					ELSE
+						msg := 'Very long';
+				END CASE;
+		
+			RAISE NOTICE 'IDArrival: %, Level: %', counter, msg;
+		END LOOP;
+	
+		RETURN msg;
+	END;
+	$$;
+
+SELECT fc_AllPortTimeChecker()
+
+
 -- 获取船舶的自定义到达编号
 -- Получение пользовательского номера прибытия корабля
 CREATE OR REPLACE FUNCTION get_arrival_num(INTEGER) RETURNS VARCHAR
@@ -67,76 +143,3 @@ WITH SumTimes AS (
 SELECT * from SumTimes
 
 
--- 评估船舶滞留码头时间的等级
--- Оценка уровня времени, в течение которого корабль простаивает в порте
-CREATE OR REPLACE FUNCTION fc_PortTimeChecker(INTEGER) RETURNS TEXT 
-	LANGUAGE plpgsql
-	AS $$
-	DECLARE 
-		t_ArrivalTime TIMESTAMP := (SELECT ArrivalTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
-		t_LeaveTime TIMESTAMP := (SELECT LeaveTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
-		Days INTEGER;
-		msg TEXT;
-	BEGIN
-		IF (t_LeaveTime IS NULL) THEN 
-			RAISE EXCEPTION '[ERROR] LeaveTime can not be NULL';
-		END IF;
-		
-		Days := extract(day from t_LeaveTime - t_ArrivalTime);
-		CASE
-			WHEN Days BETWEEN 0 AND 30 THEN
-				msg := 'Short';
-			WHEN Days BETWEEN 30 AND 100 THEN
-				msg := 'Normal';
-			WHEN Days BETWEEN 100 AND 150 THEN
-				msg := 'Long';
-			ELSE
-				msg := 'Very long';
-		END CASE;
-		
-		RETURN msg;
-	END;
-	$$;
-
-SELECT fc_PortTimeChecker(1)
-SELECT fc_PortTimeChecker(2)
-
--- 
-CREATE OR REPLACE FUNCTION fc_AllPortTimeChecker() RETURNS TEXT 
-	LANGUAGE plpgsql
-	AS $$
-	DECLARE 
- 		t_ArrivalTime TIMESTAMP;
- 		t_LeaveTime TIMESTAMP;
-		StartNum INTEGER := (SELECT min(idarrival) FROM tb_arrivals);
-		StopNum INTEGER := (SELECT max(idarrival) FROM tb_arrivals);
-		Days INTEGER;
-		msg TEXT;
-	BEGIN
-		FOR counter IN StartNum .. StopNum LOOP
-				IF (t_LeaveTime IS NULL) THEN 
-					RAISE NOTICE 'IDArrival: % con not handle', counter;
-				END IF;		
-						
-				t_ArrivalTime := (SELECT ArrivalTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=counter);
-				t_LeaveTime := (SELECT LeaveTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=counter);
-				Days := extract(day from t_LeaveTime - t_ArrivalTime);
-				CASE
-					WHEN Days BETWEEN 0 AND 30 THEN
-						msg := 'Short';
-					WHEN Days BETWEEN 30 AND 100 THEN
-						msg := 'Normal';
-					WHEN Days BETWEEN 100 AND 150 THEN
-						msg := 'Long';
-					ELSE
-						msg := 'Very long';
-				END CASE;
-		
-			RAISE NOTICE 'IDArrival: %, Level: %', counter, msg;
-		END LOOP;
-	
-		RETURN msg;
-	END;
-	$$;
-
-SELECT fc_AllPortTimeChecker()

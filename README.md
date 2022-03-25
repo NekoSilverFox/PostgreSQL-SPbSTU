@@ -420,7 +420,7 @@ CREATE ROLE test;
 ALTER ROLE test PASSWORD '123';
 ```
 
-<img src="doc/pic/README/image-20220324211259582.png" alt="image-20220324211259582" style="zoom:44%;" />
+<img src="doc/pic/README/image-20220324211259582.png" alt="image-20220324211259582" style="zoom: 50%;" />
 
 
 
@@ -430,7 +430,7 @@ ALTER ROLE test PASSWORD '123';
     ALTER ROLE test LOGIN;
     ```
 
-    <img src="doc/pic/README/image-20220324211432812.png" alt="image-20220324211432812" style="zoom:40%;" />
+    <img src="doc/pic/README/image-20220324211432812.png" alt="image-20220324211432812" style="zoom: 50%;" />
 
     
 

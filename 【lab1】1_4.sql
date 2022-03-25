@@ -62,8 +62,8 @@ CREATE OR REPLACE TRIGGER tr_TimeChecker
 
 ------------
 SELECT * FROM tb_arrivals WHERE IDArrival=2000;
-INSERT INTO tb_Arrivals (idarrival, PortID, SeacraftID, Purpose, ArrivalTime, LeaveTime) VALUES (2000, 10, 17, NULL, '2022-02-04 10:23:01', '2022-04-26 00:10:27');
-UPDATE tb_arrivals SET LeaveTime='2022-04-26 00:10:26' WHERE IDArrival=2000;
+INSERT INTO tb_Arrivals (idarrival, PortID, SeacraftID, Purpose, ArrivalTime, LeaveTime) VALUES (2000, 10, 17, NULL, '2022-02-04 10:23:01', '2022-05-26 00:10:27');
+UPDATE tb_arrivals SET LeaveTime='2022-05-26 00:10:26' WHERE IDArrival=2000;
 DELETE FROM tb_arrivals WHERE idarrival=2000;
 
 
