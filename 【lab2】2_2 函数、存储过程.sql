@@ -142,4 +142,5 @@ WITH SumTimes AS (
 )
 SELECT * from SumTimes
 
-
+DROP EXTENSION plpython3u;
+CREATE EXTENSION plpython3u;
