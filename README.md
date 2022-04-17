@@ -1,8 +1,10 @@
 
 
-# 【lab 1.4】 Контроль целостности данных
+# lab 1
 
-## Результат
+## 【lab 1.4】 Контроль целостности данных
+
+### Результат
 
 | **Контроль целостности данных** | грязные чтении | неповторяющиеся чтении | Потерянные изменении | фантом | **Аномалия сериализации** |
 | ------------------------------- | -------------- | ---------------------- | -------------------- | ------ | ------------------------- |
@@ -13,7 +15,7 @@
 
 
 
-## Аномалия сериализации
+### Аномалия сериализации
 
 We can conclude that Postgres uses a `dependencies detection` mechanism to detect potential `read phenomena` and stop them by throwing out an error.
 
@@ -40,7 +42,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-# READ UNCOMMITTED
+## READ UNCOMMITTED
 
 - **[-] грязные чтении & [+] неповторяющиеся чтении**
 
@@ -135,7 +137,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-# READ COMMITTED
+## READ COMMITTED
 
 - **[-] Грязные чтении & [+] Неповторяющиеся чтении**
 
@@ -228,7 +230,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-# REPEATABLE READ
+## REPEATABLE READ
 
 - **[-] Грязные чтении & [-] Неповторяющиеся чтении**
 
@@ -318,7 +320,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-# SERIALIZABLE
+## SERIALIZABLE
 
 - **[-] Грязные чтении & [-] Неповторяющиеся чтении**
 
@@ -408,9 +410,11 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 ---
 
+# lab 2
 
 
-# 【lab】2.1
+
+## 【lab】2.1
 
 1. **Создать пользователя test** 
 
@@ -530,7 +534,11 @@ ALTER ROLE test PASSWORD '123';
 
 
 
+---
 
+
+
+# lab 3
 
 
 
