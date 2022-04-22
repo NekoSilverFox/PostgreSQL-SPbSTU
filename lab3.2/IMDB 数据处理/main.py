@@ -33,14 +33,18 @@ def normal_actor(file_path: str) -> pd.DataFrame:
 
     res_name_title = []
     name_list = []
-    title = ''
-    year = 0
-    series_name = ''  # 系列名称： {}
-    character_name = ''  # 角色名称
+
     for col in source_data.values:
         if col[0] is not np.nan:
+            title = None
+            year = None
+            series_name = None  # 系列名称： {}
+            character_name = None  # 角色名称
+
             names = col[0]
             name_list = names.split(', ')
+
+            title_mix = col[1]
 
         for this_name in name_list:
             res_name_title.append([this_name, col[1]])
