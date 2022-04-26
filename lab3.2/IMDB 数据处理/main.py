@@ -29,7 +29,7 @@ def normal_actor(file_path: str, dump_name_title: str, dump_df_res: str) -> pd.D
         sep='\t'
     )
 
-    # source_data = source_data.iloc[:10000, :]
+    source_data = source_data.iloc[:1000000, :]
 
     time_end = datetime.datetime.now()
     print('[INFO] 读取文件结束，用时：', (time_end - time_start).seconds, ' 秒')
@@ -95,10 +95,11 @@ def normal_actor(file_path: str, dump_name_title: str, dump_df_res: str) -> pd.D
 
             list_name_title.append([this_name, rols])  # this_name 是 str, rols 是DataFrame
 
-            if i % 10000 == 0:
-               use_sec = (datetime.datetime.now() - time_start).seconds
-               print('[INFO] 已处理 ', i, ' 行 | ', (i / source_data.shape[0]) * 100, '% | 已用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
-            i += 1
+        if i % 10000 == 0:
+           use_sec = (datetime.datetime.now() - time_start).seconds
+           print('[INFO] 已处理 ', i, ' 行 | ', (i / source_data.shape[0]) * 100, '% | 已用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
+        i += 1
+
     use_sec = (datetime.datetime.now() - time_start).seconds
     print('[INFO] 数据提取结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
 
@@ -116,14 +117,14 @@ def normal_actor(file_path: str, dump_name_title: str, dump_df_res: str) -> pd.D
 
 
 
-    print('>>' * 50)
-    print('[INFO] 开始序列化（备份）df_name_title')
-    time_start = datetime.datetime.now()
-    f = open(dump_name_title, 'wb')
-    pickle.dump(obj=df_name_title, file=f)
-    f.close()
-    use_sec = (datetime.datetime.now() - time_start).seconds
-    print('[INFO] 序列化（备份）结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
+    # print('>>' * 50)
+    # print('[INFO] 开始序列化（备份）df_name_title')
+    # time_start = datetime.datetime.now()
+    # f = open(dump_name_title, 'wb')
+    # pickle.dump(obj=df_name_title, file=f)
+    # f.close()
+    # use_sec = (datetime.datetime.now() - time_start).seconds
+    # print('[INFO] 序列化（备份）结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
 
 
     """合并重复的 name，使其唯一。rols 中增加同一演员的信息"""
@@ -175,28 +176,30 @@ if __name__ == '__main__':
     print('>>' * 50)
     print('[INFO] 开始执行')
 
+    ##################################################################################################################
     # 女演员列表df
     print('[INFO]  main -> 开始处理 `data_actresses.list.txt`')
     df_actresses = normal_actor(
         file_path='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
-                  'курс/6 семестр/СУБД/资料/DataSet/data_actresses.list.txt', 
-        dump_name_title='./dump_df_actresses_name_title.bits',
-        dump_df_res='./dump_df_actresses.bits'
+                  'курс/6 семестр/СУБД/资料/DataSet/data_actresses.list.txt',
+        dump_name_title='./result/dump_df_actresses_name_title.bits',
+        dump_df_res='./result/dump_df_actresses.bits'
     )
-    print('[INFO] 执行结束')
+    print('[INFO] main <- 处理 `data_actresses.list.txt`结束')
+    ##################################################################################################################
 
     # print('[INFO] `data_actresses.list.txt` 处理结束，开始写入文件 `result_actresses.csv`')
     # df_actresses.to_csv(path_or_buf='.\\result\\result_actresses.csv')
     # print('[INFO] `result_actresses.csv` 写入完成')
 
-
+    ##################################################################################################################
     # # 男演员列表df
     # print('[INFO] Start handle `data_actors.list.txt`')
     # df_actors = normal_actor(
     #     file_path='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
     #               'курс/6 семестр/СУБД/资料/DataSet/data_actors.list.txt'
     # )
-
+    ##################################################################################################################
 
     # print('[INFO] `data_actors.list.txt` 处理结束，开始写入文件 `result_actors.csv`')
     # df_actresses.to_csv(path_or_buf='.\\result\\result_actors.csv')
@@ -217,33 +220,60 @@ if __name__ == '__main__':
     # #     orient='table',
     # #     index=False)
 
-    # # 演员信息表
-    # print('[INFO] Start handle `name.basics.tsv`')
-    # df_name_info = pd.read_csv(
-    #     filepath_or_buffer='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt'
-    #                        '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/name.basics.tsv',
-    #     header=0,
-    #     sep='\t'
-    # )
-    # df_name_info = df_name_info.iloc[:, :-1]
-    # df_name_info.columns = ['nconst', 'name', 'birthYear', 'deathYear', 'profession']
+    ##################################################################################################################
+    # 演员信息表
+    print('>>' * 50)
+    print('[INFO] 开始读取 `name.basics.tsv`')
+    time_start = datetime.datetime.now()
+    df_name_info = pd.read_csv(
+        filepath_or_buffer='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt'
+                           '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/name.basics.tsv',
+        header=0,
+        sep='\t'
+    )
+    df_name_info = df_name_info.iloc[:, :-1]
+    df_name_info.columns = ['nconst', 'name', 'birthYear', 'deathYear', 'profession']
+    time_end = datetime.datetime.now()
+    print('[INFO] 读取 `name.basics.tsv`结束，用时：', (time_end - time_start).seconds, ' 秒')
+    ##################################################################################################################
 
-    # # 处理缺失值为 None，方便转换为 JSON
-    # df_name_info.replace(to_replace=['\\N', np.nan], value=None, inplace=True)
 
-    # print('[INFO] Start to merge DataFrame')
-    # df_all = pd.merge(left=df_name_info,
-    #                   right=df_all_actors,
-    #                   how='inner',
-    #                   on='name')
+    ##################################################################################################################
+    # 处理缺失值为 None，方便转换为 JSON
+    print('>>' * 50)
+    print('[INFO] 开始处理缺失值为 None 并移除重复值，方便转换为 JSON')
+    time_start = datetime.datetime.now()
+    df_name_info.replace(to_replace=['\\N', np.nan], value=None, inplace=True)
+    df_name_info.drop_duplicates(subset='name', keep='first', inplace=True)
+    time_end = datetime.datetime.now()
+    print('[INFO] 处理缺失值并移除重复值结束，用时：', (time_end - time_start).seconds, ' 秒')
+    ##################################################################################################################
 
-    # print('[INFO] Start write to JSON file')
-    # df_all.to_json(
-    #     path_or_buf='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity'
-    #                 '/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/df_final_all.json',
-    #     orient='table',
-    #     index=False)
-    # print('[INFO] JSON 写入完成')
 
+    ##################################################################################################################
+    print('>>' * 50)
+    print('[INFO] 开始 merge 两张大表，以处理为最终结果')
+    time_start = datetime.datetime.now()
+    df_all = pd.merge(left=df_name_info,
+                      right=df_actresses,
+                      how='inner',
+                      on='name')
+    time_end = datetime.datetime.now()
+    print('[INFO] merge 结束，用时：', (time_end - time_start).seconds, ' 秒')
+
+    df_name_info = None
+    df_actresses = None
+    print('[INFO] 释放内存')
+    ##################################################################################################################
+
+    ##################################################################################################################
+    print('[INFO] Start write to JSON file')
+    df_all.to_json(
+        path_or_buf='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity'
+                    '/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/df_final_all.json',
+        orient='table',
+        index=False)
+    print('[INFO] JSON 写入完成')
+    ##################################################################################################################
 
     pass
