@@ -1,3 +1,5 @@
+DROP DATABASE db_IMDB;
+
 CREATE DATABASE db_IMDB
 WITH
   OWNER = "fox"
@@ -5,68 +7,36 @@ WITH
 ;
 
 --------------------------------------------------------------------------------
-DROP TABLE tb_name_basics;
-CREATE TABLE tb_name_basics (
-	nconst 						CHARACTER VARYING,
-	primaryName				CHARACTER VARYING,
-	birthYear					SMALLINT,
-	deathYear					SMALLINT,
-	primaryProfession	CHARACTER VARYING,
-	knownForTitles		CHARACTER VARYING
-)
-
-COPY tb_name_basics FROM '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/name.basics.tsv' (FORMAT CSV, DELIMITER E'\t',NULL '\N', HEADER TRUE);
-
-copy tb_name_basics from '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/name.basics.tsv' WITH(format csv,DELIMITER ' ',NULL '',quote '"',escape '\');
-
-CREATE INDEX IF NOT EXISTS IX_name_basics ON tb_name_basics (primaryname, birthyear, deathyear, primaryprofession);
-
---------------------------------------------------------------------------------
-
 DROP TABLE tb_json;
 CREATE TABLE tb_json (
-	nconst 						json,
-	primaryName				json,
-	birthYear					json,
-	deathYear					json
+	iddata						SERIAL,
+	imdata 						JSON
 );
 
--- 生成 JSON 对象到文件
-COPY (SELECT jsonb_build_object('nconst', nconst,
-												 'primaryName', primaryName,
-												 'birthYear', birthYear,
-												 'deathYear', deathYear) FROM tb_name_basics)
-	TO '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/json.txt';
+COPY tb_json(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json'; -- 49s
+SELECT * FROM tb_test;
 
--- 写入失败
-COPY tb_json FROM '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/name.basics.json';
 --------------------------------------------------------------------------------
-
-DROP TABLE tb_test;
-CREATE TABLE tb_test (
-	data_col 						json
+DROP TABLE tb_jsonb;
+CREATE TABLE tb_jsonb (
+	iddata						SERIAL,
+	imdata 						JSONB
 );
-CREATE TABLE tb_test AS 
-	SELECT '{"a":"b"}'::json;
 
-
-INSERT INTO tb_test VALUES('{"id": 23635,"name": "Jerry Green","comment": "Imported from facebook."}');
+COPY tb_jsonb(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json';  -- 75.32s
 SELECT * FROM tb_test;
 
-
-INSERT INTO tb_test VALUES(
-'{"id": 23635,"name": "Jerry Green","comment": "Imported from facebook."}
-{"id": 23636,"name": "John Wayne","comment": "Imported from facebook."}');
-SELECT * FROM tb_test;
-
------------------------------------------------ 成功导入 -----------------------------------------------
--- https://stackoverflow.com/questions/44997087/insert-json-into-postgresql-that-contains-quotation-marks
-COPY tb_test FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/test_json.json';
-SELECT * FROM tb_test;
 -------------------------------------------------------------------------------------------------------
 
+drop table tb_test;
+CREATE TABLE tb_test (
+	testdata 						JSONB
+);
+COPY tb_test FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/test_json.json';
+select * FROM tb_test;
 
-SELECT 1::int, '{"a":"b"}'::jsonb
+
+SELECT * FROM tb_test WHERE tb_test.testdata::jsonb->> 'name' = 'Aditya';
 
 --------------------------------------------------------------------------------
 SELECT * 
