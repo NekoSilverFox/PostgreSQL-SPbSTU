@@ -42,7 +42,33 @@ COPY (SELECT jsonb_build_object('nconst', nconst,
 COPY tb_json FROM '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/name.basics.json';
 --------------------------------------------------------------------------------
 
+DROP TABLE tb_test;
+CREATE TABLE tb_test (
+	data_col 						json
+);
+CREATE TABLE tb_test AS 
+	SELECT '{"a":"b"}'::json;
 
+
+INSERT INTO tb_test VALUES('{"id": 23635,"name": "Jerry Green","comment": "Imported from facebook."}');
+SELECT * FROM tb_test;
+
+
+INSERT INTO tb_test VALUES(
+'{"id": 23635,"name": "Jerry Green","comment": "Imported from facebook."}
+{"id": 23636,"name": "John Wayne","comment": "Imported from facebook."}');
+SELECT * FROM tb_test;
+
+----------------------------------------------- 成功导入 -----------------------------------------------
+-- https://stackoverflow.com/questions/44997087/insert-json-into-postgresql-that-contains-quotation-marks
+COPY tb_test FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/test_json.json';
+SELECT * FROM tb_test;
+-------------------------------------------------------------------------------------------------------
+
+
+SELECT 1::int, '{"a":"b"}'::jsonb
+
+--------------------------------------------------------------------------------
 SELECT * 
 	FROM tb_name_basics p
 	WHERE any(string_to_array(p.knownfortitles, ','))='tt0050419'

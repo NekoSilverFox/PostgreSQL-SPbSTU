@@ -293,8 +293,8 @@ if __name__ == '__main__':
         df_all.to_json(
             path_or_buf='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity'
                         '/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/result_json_actors/df_final_actors_' + str(i) + '.json',
-            orient='table',
-            index=False)
+            orient='records',
+            lines=True)
         print('[INFO] JSON 写入完成')
         df_all = None
         print('[INFO] 释放内存')

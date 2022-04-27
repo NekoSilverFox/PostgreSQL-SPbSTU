@@ -136,8 +136,8 @@ if __name__ == '__main__':
     print('[INFO] 保存[最终]结果为 JSON')
     time_start = datetime.datetime.now()
     df_result_all.to_json(path_or_buf=path_result_json_save,
-                          orient='table',
-                          index=False)
+                          orient='records',
+                          lines=True)
     time_end = datetime.datetime.now()
     print('[INFO] 保存[最终]结果为 JSON，用时：', (time_end - time_start).seconds, ' 秒\n')
 
