@@ -14,7 +14,7 @@ CREATE TABLE tb_json (
 );
 
 COPY tb_json(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json'; -- 49s
-SELECT * FROM tb_test;
+SELECT * FROM tb_json;
 
 --------------------------------------------------------------------------------
 DROP TABLE tb_jsonb;
@@ -24,7 +24,7 @@ CREATE TABLE tb_jsonb (
 );
 
 COPY tb_jsonb(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json';  -- 75.32s
-SELECT * FROM tb_test;
+SELECT * FROM tb_jsonb;
 
 -------------------------------------------------------------------------------------------------------
 

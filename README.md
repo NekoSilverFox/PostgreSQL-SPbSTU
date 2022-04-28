@@ -610,7 +610,7 @@ ALTER ROLE test PASSWORD '123';
 
 
 
-**Постановка задачи**
+### Постановка задачи
 
 Седьмое практическое задание связано с проектированием схемы базы данных для аналитики. Будем исходить из того, что приложение, для которого была сделана база данных в задании стала очень популярной и по ней каждый день можно собирать большой объем статистической информации. Результатом данного практического задания являются: **скрипты создания базы данных, хранимая процедура (генератор) для ее заполнения**, **анализ плана выполнения запроса**.
 
@@ -809,9 +809,9 @@ $$ LANGUAGE plpython3u;
 
 
 
-- **Запрос к одной таблице, содержащий фильтрацию по нескольким полям.**
+- ==[1]== **Запрос к одной таблице, содержащий фильтрацию по нескольким полям.**
 
-      
+  ​    
 
     1. Получить план выполнения запроса **без использования индексов** (удаление индекса или отключение его использования в плане запроса).
 
@@ -852,7 +852,7 @@ $$ LANGUAGE plpython3u;
 
         
 
-    4. Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
+        Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
 
         ```sql
         db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals WHERE ArrivalTime BETWEEN '2000-01-01 00:00:00'::TIMESTAMP AND '2001-01-01 00:00:00' AND PortID > 1000;
@@ -897,9 +897,9 @@ $$ LANGUAGE plpython3u;
 
 
 
-- **Запрос к нескольким связанным таблицам, содержащий фильтрацию по нескольким полям**
+- ==[2]== **Запрос к нескольким связанным таблицам, содержащий фильтрацию по нескольким полям**
 
-      
+  ​    
 
     1. Получить план выполнения запроса **без использования индексов** (удаление индекса или отключение его использования в плане запроса).
 
@@ -950,7 +950,7 @@ $$ LANGUAGE plpython3u;
 
         
 
-    4. Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
+        Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
 
         ```sql
         db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals INNER JOIN tb_seacrafts ON tb_arrivals.seacraftID=tb_seacrafts.IDSeacraft INNER JOIN tb_ports ON tb_arrivals.portID=tb_ports.IDPort WHERE NameSeacraft='cmari' AND NamePort='St Petersburg';
@@ -983,66 +983,69 @@ $$ LANGUAGE plpython3u;
 
         
 
-        Создать нужные индексы, позволяющие ускорить запрос.
+    4. Создать нужные индексы, позволяющие ускорить запрос.
 
-        ```sql
-        CREATE EXTENSION pg_trgm;
-        CREATE INDEX IX_NameSeacraft ON tb_seacrafts USING GIN(NameSeacraft gin_trgm_ops);
-        CREATE INDEX IX_NamePort ON tb_ports USING GIN(NamePort gin_trgm_ops);
-        ```
+      ```sql
+      CREATE EXTENSION pg_trgm;
+      CREATE INDEX IX_NameSeacraft ON tb_seacrafts USING GIN(NameSeacraft gin_trgm_ops);
+      CREATE INDEX IX_NamePort ON tb_ports USING GIN(NamePort gin_trgm_ops);
+      ```
 
-        
+      
 
-        Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
-
-        ```sql
-        db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals INNER JOIN tb_seacrafts ON tb_arrivals.seacraftID=tb_seacrafts.IDSeacraft INNER JOIN tb_ports ON tb_arrivals.portID=tb_ports.IDPort WHERE NameSeacraft='cmari' AND NamePort='St Petersburg';
-                                                                                         QUERY PLAN
-        -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-         Gather  (cost=1088.34..2321635.00 rows=1 width=161) (actual time=11391.572..35022.070 rows=6 loops=1)
-           Workers Planned: 2
-           Workers Launched: 2
-           ->  Hash Join  (cost=88.34..2320634.90 rows=1 width=161) (actual time=12996.658..35002.537 rows=2 loops=3)
-                 Hash Cond: (tb_arrivals.portid = tb_ports.idport)
-                 ->  Hash Join  (cost=80.03..2320626.48 rows=42 width=126) (actual time=10.302..34999.074 rows=3333 loops=3)
-                       Hash Cond: (tb_arrivals.seacraftid = tb_seacrafts.idseacraft)
-                       ->  Parallel Append  (cost=0.00..2211170.01 rows=41667034 width=97) (actual time=1.530..32921.062 rows=33333333 loops=3)
-                             ->  Parallel Seq Scan on tb_arrivals tb_arrivals_1  (cost=0.00..2002819.67 rows=41666667 width=97) (actual time=1.517..31469.568 rows=33333333 loops=3)
-                             ->  Parallel Seq Scan on tb_child_arrivals tb_arrivals_2  (cost=0.00..15.18 rows=518 width=60) (actual time=0.001..0.001 rows=0 loops=1)
-                       ->  Hash  (cost=80.02..80.02 rows=1 width=29) (actual time=1.348..1.349 rows=1 loops=3)
-                             Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                             ->  Bitmap Heap Scan on tb_seacrafts  (cost=76.01..80.02 rows=1 width=29) (actual time=1.346..1.347 rows=1 loops=3)
-                                   Recheck Cond: ((nameseacraft)::text = 'cmari'::text)
-                                   Heap Blocks: exact=1
-                                   ->  Bitmap Index Scan on ix_nameseacraft  (cost=0.00..76.01 rows=1 width=0) (actual time=1.339..1.339 rows=1 loops=3)
-                                         Index Cond: ((nameseacraft)::text = 'cmari'::text)
-                 ->  Hash  (cost=8.29..8.29 rows=1 width=35) (actual time=0.151..0.152 rows=1 loops=3)
-                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                       ->  Index Scan using uq_ports_nameport on tb_ports  (cost=0.28..8.29 rows=1 width=35) (actual time=0.083..0.084 rows=1 loops=3)
-                             Index Cond: ((nameport)::text = 'St Petersburg'::text)
-         Planning Time: 1.025 ms
-         Execution Time: 35022.279 ms
-        (23 rows)
-        
-        ```
-
-        
-
-        Получить статистику выполнения запроса с использованием индексов и сравнить с первоначальной статистикой.
-
+      Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
+      
+  
+      ```sql
+      db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals INNER JOIN tb_seacrafts ON tb_arrivals.seacraftID=tb_seacrafts.IDSeacraft INNER JOIN tb_ports ON tb_arrivals.portID=tb_ports.IDPort WHERE NameSeacraft='cmari' AND NamePort='St Petersburg';
+                                                                                       QUERY PLAN
+      -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+       Gather  (cost=1088.34..2321635.00 rows=1 width=161) (actual time=11391.572..35022.070 rows=6 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Hash Join  (cost=88.34..2320634.90 rows=1 width=161) (actual time=12996.658..35002.537 rows=2 loops=3)
+               Hash Cond: (tb_arrivals.portid = tb_ports.idport)
+               ->  Hash Join  (cost=80.03..2320626.48 rows=42 width=126) (actual time=10.302..34999.074 rows=3333 loops=3)
+                     Hash Cond: (tb_arrivals.seacraftid = tb_seacrafts.idseacraft)
+                     ->  Parallel Append  (cost=0.00..2211170.01 rows=41667034 width=97) (actual time=1.530..32921.062 rows=33333333 loops=3)
+                           ->  Parallel Seq Scan on tb_arrivals tb_arrivals_1  (cost=0.00..2002819.67 rows=41666667 width=97) (actual time=1.517..31469.568 rows=33333333 loops=3)
+                           ->  Parallel Seq Scan on tb_child_arrivals tb_arrivals_2  (cost=0.00..15.18 rows=518 width=60) (actual time=0.001..0.001 rows=0 loops=1)
+                     ->  Hash  (cost=80.02..80.02 rows=1 width=29) (actual time=1.348..1.349 rows=1 loops=3)
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           ->  Bitmap Heap Scan on tb_seacrafts  (cost=76.01..80.02 rows=1 width=29) (actual time=1.346..1.347 rows=1 loops=3)
+                                 Recheck Cond: ((nameseacraft)::text = 'cmari'::text)
+                                 Heap Blocks: exact=1
+                                 ->  Bitmap Index Scan on ix_nameseacraft  (cost=0.00..76.01 rows=1 width=0) (actual time=1.339..1.339 rows=1 loops=3)
+                                       Index Cond: ((nameseacraft)::text = 'cmari'::text)
+               ->  Hash  (cost=8.29..8.29 rows=1 width=35) (actual time=0.151..0.152 rows=1 loops=3)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     ->  Index Scan using uq_ports_nameport on tb_ports  (cost=0.28..8.29 rows=1 width=35) (actual time=0.083..0.084 rows=1 loops=3)
+                           Index Cond: ((nameport)::text = 'St Petersburg'::text)
+       Planning Time: 1.025 ms
+       Execution Time: 35022.279 ms
+      (23 rows)
+      
+      ```
+  
+      
+  
+      
+  
+    5. Получить статистику выполнения запроса с использованием индексов и сравнить с первоначальной статистикой.
+  
         |                                     | **cost**            | **actual time**      | **Planning Time** | **Execution Time** |
         | ----------------------------------- | ------------------- | -------------------- | ----------------- | ------------------ |
         | **без использования индексов**      | 1008.31..2140204.13 | 698.274..29483.075   | 7.004 ms          | 29483.181 ms       |
         | **==с использованием индексов==**   | 1016.76..2113212.11 | 9437.606..29046.762  | 3.746 ms          | 29047.011 ms       |
         | **с использованием индексов (GIN)** | 1088.34..2321635.00 | 11180.878..35380.249 | 1.025             | 35022.279          |
         | **==Разница==**                     | -27000.469          | -9175.645            | -3.2579 ms        | -436.17 ms         |
-
+  
         
-
-    5. Оценить эффективность выполнения оптимизированного запроса.
-
+  
+    6. Оценить эффективность выполнения оптимизированного запроса.
+  
         При добавлении индексов к двум полям `varchar` подтаблицы значительного улучшения **в скорости запросов не наблюдается**
-
+  
         
 
 ---
@@ -1051,9 +1054,9 @@ $$ LANGUAGE plpython3u;
 
 
 
-- **Также необходимо продемонстрировать полезность индексов для организации полнотекстового поиска.**
+- ==[3]== **Также необходимо продемонстрировать полезность индексов для организации полнотекстового поиска.**
 
-      
+  ​    
 
     1. Получить план выполнения запроса **без использования индексов** (удаление индекса или отключение его использования в плане запроса).
 
@@ -1092,7 +1095,7 @@ $$ LANGUAGE plpython3u;
 
         
 
-    4. Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
+        Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
 
         ```sql
         db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals WHERE Purpose LIKE '% at %';
@@ -1109,9 +1112,9 @@ $$ LANGUAGE plpython3u;
         (8 rows)
         ```
 
-        ---
-
         
+
+    4. Создать нужные индексы (GIN), позволяющие ускорить запрос.
 
         ```sql
         CREATE INDEX IX_Purpose ON tb_arrivals USING GIN(Purpose gin_trgm_ops);
@@ -1119,6 +1122,8 @@ $$ LANGUAGE plpython3u;
 
         
 
+        Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
+  
         ```sql
         db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals WHERE Purpose LIKE '% at %';
                                                                               QUERY PLAN
@@ -1142,7 +1147,7 @@ $$ LANGUAGE plpython3u;
         
 
     5. Получить статистику выполнения запроса с использованием индексов и сравнить с первоначальной статистикой.
-
+  
         |                                | **cost**            | **actual time**  | **Planning Time** | **Execution Time** |
         | ------------------------------ | ------------------- | ---------------- | ----------------- | ------------------ |
         | **без использования индексов** | 1000.00..2108981.63 | 2.708..35207.244 | 0.337 ms          | 35212.464 ms       |
@@ -1155,16 +1160,16 @@ $$ LANGUAGE plpython3u;
     6. Оценить эффективность выполнения оптимизированного запроса.
 
         Несмотря на то, что для текстового поля создан индекс, база данных **не использует его для запросов**
-
+  
         
 
+---
 
 
 
+- ==[4]== **Также необходимо продемонстрировать полезность индексов для организации полнотекстового поиска.**
 
-- **Также необходимо продемонстрировать полезность индексов для организации полнотекстового поиска.**
-
-      
+  ​    
 
     1. Получить план выполнения запроса **без использования индексов** (удаление индекса или отключение его использования в плане запроса).
 
@@ -1203,6 +1208,8 @@ $$ LANGUAGE plpython3u;
 
         
 
+        Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
+  
         ```sql
         db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals WHERE char_length(Purpose) > 20;
                                                                             QUERY PLAN
@@ -1223,23 +1230,22 @@ $$ LANGUAGE plpython3u;
         
 
     4. Получить статистику выполнения запроса с использованием индексов и сравнить с первоначальной статистикой.
-
+  
         |                                | **cost**         | **actual time**  | **Planning Time** | **Execution Time** |
         | ------------------------------ | ---------------- | ---------------- | ----------------- | ------------------ |
         | **без использования индексов** | 0.00..3252844.33 | 0.522..22543.607 | 2.516 ms          | 24233.586 ms       |
-        |                                |                  |                  |                   |                    |
         | с использованием индексов(GIN) | 0.00..3252844.33 | 0.514..23314.352 | 0.602 ms          | 25058.894 ms       |
         |                                |                  |                  |                   |                    |
-
-         
+        
+   
 
 ---
 
 
 
-- **Также необходимо продемонстрировать полезность индексов для организации полнотекстового поиска.**
+- ==[5]== **Также необходимо продемонстрировать полезность индексов для организации полнотекстового поиска.**
 
-      
+  ​    
 
     1. Получить план выполнения запроса **без использования индексов** (удаление индекса или отключение его использования в плане запроса).
 
@@ -1281,6 +1287,8 @@ $$ LANGUAGE plpython3u;
 
         
 
+        Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
+  
         ```sql
         db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals WHERE Purpose='sfrht';
                                                                          QUERY PLAN
@@ -1304,13 +1312,12 @@ $$ LANGUAGE plpython3u;
         
 
     4. Получить статистику выполнения запроса с использованием индексов и сравнить с первоначальной статистикой.
-
-        |                                | **cost**         | **actual time**  | **Planning Time** | **Execution Time** |
-        | ------------------------------ | ---------------- | ---------------- | ----------------- | ------------------ |
-        | **без использования индексов** | 0.00..3252844.33 | 0.522..22543.607 | 2.516 ms          | 24233.586 ms       |
-        |                                |                  |                  |                   |                    |
-        | с использованием индексов(GIN) | 0.00..3252844.33 | 0.514..23314.352 | 0.602 ms          | 25058.894 ms       |
-        |                                |                  |                  |                   |                    |
+  
+        |                                    | **cost**            | **actual time**      | **Planning Time** | **Execution Time** |
+        | ---------------------------------- | ------------------- | -------------------- | ----------------- | ------------------ |
+        | **без использования индексов**     | 1000.00..2108005.45 | 30218.895..30220.101 | 1.095 ms          | 30220.227 ms       |
+        | **с использованием индексов(GIN)** | 2396.17..2505.33    | 657.419..657.419     | 14.311 ms         | 657.908 ms         |
+        |                                    |                     |                      |                   | -29562.319 ms      |
 
 
 
@@ -1327,6 +1334,12 @@ $$ LANGUAGE plpython3u;
 > https://programmers.buzz/posts/start-exploring-database-indices/
 >
 > https://habr.com/ru/company/oleg-bunin/blog/646987/
+
+<img src="doc/pic/README/image-20220426124349983.png" alt="image-20220426124349983" style="zoom:50%;" />
+
+
+
+![image-20220427221234460](doc/pic/README/image-20220427221234460.png)
 
 
 
