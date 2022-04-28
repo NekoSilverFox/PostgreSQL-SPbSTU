@@ -86,11 +86,6 @@ def merge_duplicates(df_source: pd.DataFrame) -> pd.DataFrame:
     return df_source
 
 
-
-
-
-
-
 if __name__ == '__main__':
     ################################################################################################################
     # 合并所有男演员（actors）
@@ -148,9 +143,14 @@ if __name__ == '__main__':
 
 
     ################################################################################################################
-    # 合并后的最终结果再次去重并保存为 JSON 文件
+    # 合并后的最终结果再次去重
     ################################################################################################################
-    # TODO
+    print('>>' * 50)
+    print('[INFO] 合并后的最终结果再次去重')
+    time_start = datetime.datetime.now()
+    df_result_all = merge_duplicates(df_source=df_result_all)
+    time_end = datetime.datetime.now()
+    print('[INFO] 合并后的最终结果再次去重结束：', (time_end - time_start).seconds, ' 秒\n')
 
     ################################################################################################################
     # 合并后的最终结果再序列化并保存为 JSON 文件
@@ -158,11 +158,6 @@ if __name__ == '__main__':
     path_result_bits_save = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
                             '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
                             'семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits'
-
-    path_result_json_save = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
-                            '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
-                            'семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.json'
-
     print('>>' * 50)
     print('[INFO] 合并结束，使用序列化保存[最终]结果')
     time_start = datetime.datetime.now()
@@ -172,6 +167,10 @@ if __name__ == '__main__':
     time_end = datetime.datetime.now()
     print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
 
+
+    path_result_json_save = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
+                            '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
+                            'семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.json'
     print('>>' * 50)
     print('[INFO] 保存[最终]结果为 JSON')
     time_start = datetime.datetime.now()
@@ -180,5 +179,5 @@ if __name__ == '__main__':
                           lines=True)
     time_end = datetime.datetime.now()
     print('[INFO] 保存[最终]结果为 JSON，用时：', (time_end - time_start).seconds, ' 秒\n')
-
+    ################################################################################################################
     pass
