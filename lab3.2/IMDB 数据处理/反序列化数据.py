@@ -57,6 +57,40 @@ def concat_df(bits_file_path_header: str,
     return df_result
 
 
+def merge_duplicates(df_source: pd.DataFrame) -> pd.DataFrame:
+    """
+    将最终的结果再次去重
+    :param df_source: 合并男女演员是数组
+    :return: 合并去重后的 DataFrame
+    """
+    df_source.sort_values(by='nconst', inplace=True)
+    df_source.reset_index(drop=True, inplace=True)
+
+    i_current = 0
+    i_next = i_current + 1
+    stop_index = df_source.shape[0]
+    while i_next != stop_index:
+        while df_source.loc[i_current]['nconst'] == df_source.loc[i_next]['nconst']:
+            df_source.loc[i_current]['rols'] = pd.concat([df_source.loc[i_current]['rols'], df_source.loc[i_next]['rols']])
+            df_source.drop(index=i_next, inplace=True)
+            i_next += 1
+
+            if i_next == stop_index:
+                df_source.reset_index(drop=True, inplace=True)
+                return df_source
+
+        i_current = i_next
+        i_next += 1
+
+    df_source.reset_index(drop=True, inplace=True)
+    return df_source
+
+
+
+
+
+
+
 if __name__ == '__main__':
     ################################################################################################################
     # 合并所有男演员（actors）
@@ -111,6 +145,12 @@ if __name__ == '__main__':
     df_all_actresses = None
     print('[INFO] 内存释放')
     ################################################################################################################
+
+
+    ################################################################################################################
+    # 合并后的最终结果再次去重并保存为 JSON 文件
+    ################################################################################################################
+    # TODO
 
     ################################################################################################################
     # 合并后的最终结果再序列化并保存为 JSON 文件

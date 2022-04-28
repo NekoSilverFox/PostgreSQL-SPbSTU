@@ -15,7 +15,7 @@ CREATE TABLE tb_json (
 
 COPY tb_json(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json'; -- 49s
 SELECT * FROM tb_json;
-
+SELECT COUNT(*) FROM tb_json;
 --------------------------------------------------------------------------------
 DROP TABLE tb_jsonb;
 CREATE TABLE tb_jsonb (
@@ -25,18 +25,13 @@ CREATE TABLE tb_jsonb (
 
 COPY tb_jsonb(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json';  -- 75.32s
 SELECT * FROM tb_jsonb;
+SELECT COUNT(*) FROM tb_jsonb;
 
+SELECT * FROM tb_jsonb WHERE imdata::jsonb->> 'name' = 'Brandon Lee'
 -------------------------------------------------------------------------------------------------------
 
-drop table tb_test;
-CREATE TABLE tb_test (
-	testdata 						JSONB
-);
-COPY tb_test FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/test_json.json';
-select * FROM tb_test;
 
-
-SELECT * FROM tb_test WHERE tb_test.testdata::jsonb->> 'name' = 'Aditya';
+SELECT * FROM tb_jsonb WHERE tb_jsonb.imdata::jsonb->> 'name' = 'Aditya';
 
 --------------------------------------------------------------------------------
 SELECT * 
