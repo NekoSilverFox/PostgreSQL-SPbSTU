@@ -27,7 +27,8 @@ COPY tb_jsonb(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/du
 SELECT * FROM tb_jsonb;
 SELECT COUNT(*) FROM tb_jsonb;
 
-SELECT * FROM tb_jsonb WHERE imdata::jsonb->> 'name' = 'Brandon Lee'
+SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'name' = 'Brandon Lee';
+
 -------------------------------------------------------------------------------------------------------
 
 

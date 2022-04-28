@@ -26,7 +26,7 @@ def json_id_test():
     print('[INFO] Connect database successfully')
 
     # 获取行数
-    cur.execute("SELECT COUNT(*) FROM tb_jsonb;")
+    cur.execute("SELECT COUNT(*) FROM tb_json;")
     count_row = cur.fetchall()[0][0]
     print('行数：', count_row)
 
@@ -74,7 +74,71 @@ def json_id_test():
     plt.xlabel('Length of JSON')
     plt.ylabel('Query time (milliseconds)')
     plt.savefig('./result/json/res_id.png')
-    plt.show()
+    # plt.show()
+
+
+def jsonb_id_test():
+    # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+    print('>>' * 50)
+    print('[INFO] Start connect database')
+    conn = pg.connect(database="db_imdb",
+                      user="postgres",
+                      password="postgres",
+                      host="localhost",
+                      port="5432")
+    cur = conn.cursor()
+    print('[INFO] Connect database successfully')
+
+    # 获取行数
+    cur.execute("SELECT COUNT(*) FROM tb_jsonb;")
+    count_row = cur.fetchall()[0][0]
+    print('行数：', count_row)
+
+    # 用于统计的 DataFrame
+    df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+
+    # 执行查询并记录时间
+    for i in range(1, count_row):
+        print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+        comm_sql = 'SELECT imdata FROM tb_jsonb WHERE iddata=' + str(i) + ';'
+
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        use_time_ms = (end_time - start_time).microseconds
+        # print('用时：', (end_time - start_time).microseconds, 'ms')
+
+        rows = cur.fetchall()
+        len_row_json = len(str(rows))  # JSON(B)长度
+
+        df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+        df_counter = pd.concat([df_counter, df_tmp])
+
+    conn.close()
+
+
+    df_counter.sort_values(by='len_row', inplace=True)
+
+    print('>>' * 50)
+    print('[INFO] 合并结束，使用序列化保存[最终]结果')
+    time_start = datetime.datetime.now()
+    f = open('./result/jsonb/res_id.bits', 'wb')
+    pickle.dump(obj=df_counter, file=f)
+    f.close()
+    time_end = datetime.datetime.now()
+    print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+
+    # print(df_counter)
+
+    """绘制结果"""
+    plt.figure(figsize=(20, 10), dpi=100)
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['use_time_ms'].values)
+    plt.title('Query by key `ID` in tb_jsonb')
+    plt.xlabel('Length of JSONB')
+    plt.ylabel('Query time (milliseconds)')
+    plt.savefig('./result/jsonb/res_id.png')
+    # plt.show()
 
 
 def jsonb_name_test():
@@ -89,17 +153,75 @@ def jsonb_name_test():
     time_end = datetime.datetime.now()
     print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
 
+    print('>>' * 50)
+    print('[INFO] Start connect database')
+    conn = pg.connect(database="db_imdb",
+                      user="postgres",
+                      password="postgres",
+                      host="localhost",
+                      port="5432")
+    cur = conn.cursor()
+    print('[INFO] Connect database successfully')
 
+    i = 0
+    count_row = len(arr_name)
+    # 用于统计的 DataFrame
+    df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+    for name in arr_name[:50]:
+        print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
 
+        comm_sql = "SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'name' = '" + name + "';"
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        use_time_ms = (end_time - start_time).microseconds
+        # print('用时：', (end_time - start_time).microseconds, 'ms')
+
+        rows = cur.fetchall()
+        len_row_json = len(str(rows))  # JSON(B)长度
+
+        df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+        df_counter = pd.concat([df_counter, df_tmp])
+
+        rows = cur.fetchall()
+        len_row_json = len(str(rows))  # JSON(B)长度
+        print(rows)  # TODO 注释掉
+
+        df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+        df_counter = pd.concat([df_counter, df_tmp])
+    conn.close()
+
+    df_counter = df_counter.iloc[1:, :]
+    df_counter.sort_values(by='len_row', inplace=True)
+
+    print('>>' * 50)
+    print('[INFO] 合并结束，使用序列化保存[最终]结果')
+    time_start = datetime.datetime.now()
+    f = open('./result/jsonb/res_name.bits', 'wb')
+    pickle.dump(obj=df_counter, file=f)
+    f.close()
+    time_end = datetime.datetime.now()
+    print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+
+    # print(df_counter)
+
+    """绘制结果"""
+    plt.figure(figsize=(20, 10), dpi=100)
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['use_time_ms'].values)
+    plt.title('Query by key `name` in tb_jsonb')
+    plt.xlabel('Length of JSONB')
+    plt.ylabel('Query time (milliseconds)')
+    plt.savefig('./result/jsonb/res_name.png')
+    plt.show()  # TODO 注释掉
 
 
 if __name__ == '__main__':
-    json_id_test()
+    # json_id_test()
 
-    # print(rows)
-    # print(len_row)
+    # jsonb_id_test()
 
-    # for row in rows:
-    #     print(row)
+    jsonb_name_test()
+
 
 

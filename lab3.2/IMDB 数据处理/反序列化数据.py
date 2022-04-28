@@ -69,7 +69,7 @@ def merge_duplicates(df_source: pd.DataFrame) -> pd.DataFrame:
     i_current = 0
     i_next = i_current + 1
     stop_index = df_source.shape[0]
-    while i_next != stop_index:
+    while i_next <= stop_index:
         while df_source.loc[i_current]['nconst'] == df_source.loc[i_next]['nconst']:
             df_source.loc[i_current]['rols'] = pd.concat([df_source.loc[i_current]['rols'], df_source.loc[i_next]['rols']])
             df_source.drop(index=i_next, inplace=True)
@@ -79,6 +79,7 @@ def merge_duplicates(df_source: pd.DataFrame) -> pd.DataFrame:
                 df_source.reset_index(drop=True, inplace=True)
                 return df_source
 
+        print('[INFO] 已合并 ', i_current, ' 行 | ', round(i_current / df_source.shape[0] * 100, 4), '%')
         i_current = i_next
         i_next += 1
 
@@ -150,7 +151,7 @@ if __name__ == '__main__':
     time_start = datetime.datetime.now()
     df_result_all = merge_duplicates(df_source=df_result_all)
     time_end = datetime.datetime.now()
-    print('[INFO] 合并后的最终结果再次去重结束：', (time_end - time_start).seconds, ' 秒\n')
+    print('[INFO] 合并后的最终结果再次去重结束：', (time_end - time_start).seconds, ' 秒\n')  # [INFO] 合并后的最终结果再次去重结束： 9714  秒
 
     ################################################################################################################
     # 合并后的最终结果再序列化并保存为 JSON 文件
