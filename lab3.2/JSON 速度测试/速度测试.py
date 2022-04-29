@@ -13,7 +13,7 @@ import datetime
 import pickle
 
 
-def json_id_test():
+def json_id_test_bk():
     # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
     print('>>' * 50)
     print('[INFO] Start connect database')
@@ -36,8 +36,8 @@ def json_id_test():
     # 执行查询并记录时间
     for i in range(1, 3000):
         print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
-        comm_sql = 'SELECT imdata FROM tb_json WHERE iddata=' + str(i) + ';'
 
+        comm_sql = 'SELECT imdata FROM tb_json WHERE iddata=' + str(i) + ';'
         start_time = datetime.datetime.now()
         cur.execute(comm_sql)
         end_time = datetime.datetime.now()
@@ -70,6 +70,122 @@ def json_id_test():
     plt.figure(figsize=(20, 10), dpi=100)
     plt.scatter(x=df_counter['len_row'].values,
                 y=df_counter['use_time_ms'].values)
+    plt.title('Query by key `ID` in tb_json')
+    plt.xlabel('Length of JSON')
+    plt.ylabel('Query time (milliseconds)')
+    plt.savefig('./result/json/res_id.png')
+    # plt.show()
+
+
+def json_id_test():
+    # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+    print('>>' * 50)
+    print('[INFO] Start connect database')
+    conn = pg.connect(database="db_imdb",
+                      user="postgres",
+                      password="postgres",
+                      host="localhost",
+                      port="5432")
+    cur = conn.cursor()
+    print('[INFO] Connect database successfully')
+
+    # 获取行数
+    cur.execute("SELECT COUNT(*) FROM tb_json;")
+    count_row = cur.fetchall()[0][0]
+    print('行数：', count_row)
+
+    # 用于统计的 DataFrame
+    df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+
+    # 执行查询并记录时间
+    for i in range(1, 3000):
+        print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+
+        # 整个 data 行所有字段
+        comm_sql = 'SELECT imdata FROM tb_json WHERE iddata=' + str(i) + ';'
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        full_use_time_ms = (end_time - start_time).microseconds
+        row = cur.fetchall()[0]
+        len_row_json = len(str(row))  # JSON(B)长度
+
+        # 整个 data 行的字段 nconst
+        comm_sql = "SELECT imdata->>'nconst' FROM tb_json WHERE iddata=" + str(i) + ';'
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        nconst_use_time_ms = (end_time - start_time).microseconds
+
+        # 整个 data 行的字段 name
+        comm_sql = "SELECT imdata->>'name' FROM tb_json WHERE iddata=" + str(i) + ';'
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        name_use_time_ms = (end_time - start_time).microseconds
+
+        # 整个 data 行的字段 birthYear
+        comm_sql = "SELECT imdata->>'birthYear' FROM tb_json WHERE iddata=" + str(i) + ';'
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        birthYear_use_time_ms = (end_time - start_time).microseconds
+
+        # 整个 data 行的字段 profession
+        comm_sql = "SELECT imdata->>'profession' FROM tb_json WHERE iddata=" + str(i) + ';'
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        profession_use_time_ms = (end_time - start_time).microseconds
+
+        # 整个 data 行的字段 rols
+        comm_sql = "SELECT imdata->>'profession' FROM tb_json WHERE iddata=" + str(i) + ';'
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        rols_use_time_ms = (end_time - start_time).microseconds
+
+        df_tmp = pd.DataFrame([[len_row_json, full_use_time_ms, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, profession_use_time_ms, rols_use_time_ms]],
+                              columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+        df_counter = pd.concat([df_counter, df_tmp])
+
+    conn.close()
+
+    df_counter = df_counter.iloc[1:, :]
+    df_counter.sort_values(by='len_row', inplace=True)
+
+    print('>>' * 50)
+    print('[INFO] 合并结束，使用序列化保存[最终]结果')
+    time_start = datetime.datetime.now()
+    f = open('./result/json/res_id.bits', 'wb')
+    pickle.dump(obj=df_counter, file=f)
+    f.close()
+    time_end = datetime.datetime.now()
+    print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+
+    # print(df_counter)
+
+    """绘制结果"""
+    plt.figure(figsize=(20, 10), dpi=100)
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['full_ms'].values,
+                label='full row')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['nconst_ms'].values,
+                label='nconst')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['name_ms'].values,
+                label='name')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['birthYear_ms'].values,
+                label='birthYear')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['profession_ms'].values,
+                label='profession')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['rols_ms'].values,
+                label='rols')
+    plt.legend()
     plt.title('Query by key `ID` in tb_json')
     plt.xlabel('Length of JSON')
     plt.ylabel('Query time (milliseconds)')
@@ -319,7 +435,7 @@ def json_where_nconst_test():
     # 用于统计的 DataFrame
     df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
     # TODO 取消分割
-    for nconst in arr_nconst[:10]:
+    for nconst in arr_nconst[:1000]:
         i += 1
         print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
 
@@ -393,7 +509,7 @@ def jsonb_where_nconst_test():
     # 用于统计的 DataFrame
     df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
     # TODO 取消分割
-    for nconst in arr_nconst[:10]:
+    for nconst in arr_nconst[:3000]:
         i += 1
         print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
 
@@ -441,6 +557,8 @@ def jsonb_where_nconst_test():
 
 
 if __name__ == '__main__':
+    json_id_test()
+
     # json_id_test()
 
     # jsonb_id_test()
@@ -449,9 +567,10 @@ if __name__ == '__main__':
 
     # jsonb_name_test()
 
-    json_where_nconst_test()
+    # jsonb_where_nconst_test()
 
-    jsonb_where_nconst_test()
+    # json_where_nconst_test()
+
 
 
 

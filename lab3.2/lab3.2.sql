@@ -18,6 +18,7 @@ SELECT * FROM tb_json;
 SELECT COUNT(*) FROM tb_json;
 
 SELECT imdata FROM tb_json WHERE imdata::json->>'name' = 'Richard Burton';
+SELECT imdata->>'name' FROM tb_json WHERE imdata::json->>'name' = 'Richard Burton';
 --------------------------------------------------------------------------------
 DROP TABLE tb_jsonb;
 CREATE TABLE tb_jsonb (
@@ -31,8 +32,8 @@ SELECT COUNT(*) FROM tb_jsonb;
 
 SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'name' = 'Richard Burton';
 SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'nconst' = 'nm0000009';
-
-->'nickname' = '"gs"'::json;
+SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->'nconst' = '"nm0000009"';
+select '{"nickname": "gs", "avatar": "avatar_url", "tags": ["python", "golang", "db"]}'::jsonb->'nickname' = '"gs"';
 -------------------------------------------------------------------------------------------------------
 
 

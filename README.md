@@ -991,10 +991,11 @@ $$ LANGUAGE plpython3u;
       CREATE INDEX IX_NamePort ON tb_ports USING GIN(NamePort gin_trgm_ops);
       ```
 
-      
-
+  
+  ​    
+  
       Получить план выполнения запроса с использованием индексов и сравнить с первоначальным планом.
-      
+  
   
       ```sql
       db_port=# EXPLAIN ANALYZE SELECT * FROM tb_arrivals INNER JOIN tb_seacrafts ON tb_arrivals.seacraftID=tb_seacrafts.IDSeacraft INNER JOIN tb_ports ON tb_arrivals.portID=tb_ports.IDPort WHERE NameSeacraft='cmari' AND NamePort='St Petersburg';
@@ -1027,9 +1028,10 @@ $$ LANGUAGE plpython3u;
       
       ```
   
-      
   
-      
+  ​    
+  
+  ​    
   
     5. Получить статистику выполнения запроса с использованием индексов и сравнить с первоначальной статистикой.
   
@@ -1237,7 +1239,7 @@ $$ LANGUAGE plpython3u;
         | с использованием индексов(GIN) | 0.00..3252844.33 | 0.514..23314.352 | 0.602 ms          | 25058.894 ms       |
         |                                |                  |                  |                   |                    |
         
-   
+  
 
 ---
 
@@ -1345,7 +1347,7 @@ $$ LANGUAGE plpython3u;
 
 
 
-
+![output](doc/pic/README/output.png)
 
 
 
