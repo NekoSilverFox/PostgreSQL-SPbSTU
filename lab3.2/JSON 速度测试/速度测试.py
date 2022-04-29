@@ -629,7 +629,7 @@ def jsonb_by_where_nconst_only_full_row_test():
     # TODO 取消分割
     for nconst in arr_nconst[:3000]:
         i += 1
-        print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
+        print('\n[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
 
         comm_sql = "SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'nconst' = '" + nconst + "';"
         start_time = datetime.datetime.now()
@@ -703,10 +703,10 @@ def json_by_where_nconst_every_col_test():
                               columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms',
                                        'rols_ms'])
     # TODO 取消分割
-    # for nconst in arr_nconst[:1000]:
+    # for nconst in arr_nconst[:2000]:
     for nconst in arr_nconst[:10]:
         i += 1
-        print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
+        print('\n[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
 
         # 整个 data 行所有字段
         comm_sql = "SELECT imdata FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
@@ -720,7 +720,7 @@ def json_by_where_nconst_every_col_test():
         full_use_time_ms = (end_time - start_time).microseconds
         row = cur.fetchall()[0]
         len_row_json = len(str(row))  # JSON(B)长度
-        print('\t用时：', (end_time - start_time).seconds, 's')
+        print('\tfull row 用时：', (end_time - start_time).seconds, 's')
 
         # 整个 data 行的字段 nconst
         comm_sql = "SELECT imdata->>'nconst' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
@@ -728,6 +728,9 @@ def json_by_where_nconst_every_col_test():
         cur.execute(comm_sql)
         end_time = datetime.datetime.now()
         nconst_use_time_ms = (end_time - start_time).microseconds
+        print('\tnconst 用时：', (end_time - start_time).seconds, 's')
+
+
 
         # 整个 data 行的字段 name
         comm_sql = "SELECT imdata->>'name' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
@@ -735,6 +738,7 @@ def json_by_where_nconst_every_col_test():
         cur.execute(comm_sql)
         end_time = datetime.datetime.now()
         name_use_time_ms = (end_time - start_time).microseconds
+        print('\tname 用时：', (end_time - start_time).seconds, 's')
 
         # 整个 data 行的字段 birthYear
         comm_sql = "SELECT imdata->>'birthYear' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
@@ -742,6 +746,7 @@ def json_by_where_nconst_every_col_test():
         cur.execute(comm_sql)
         end_time = datetime.datetime.now()
         birthYear_use_time_ms = (end_time - start_time).microseconds
+        print('\tbirthYear 用时：', (end_time - start_time).seconds, 's')
 
         # 整个 data 行的字段 profession
         comm_sql = "SELECT imdata->>'profession' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
@@ -749,6 +754,7 @@ def json_by_where_nconst_every_col_test():
         cur.execute(comm_sql)
         end_time = datetime.datetime.now()
         profession_use_time_ms = (end_time - start_time).microseconds
+        print('\tprofession 用时：', (end_time - start_time).seconds, 's')
 
         # 整个 data 行的字段 rols
         comm_sql = "SELECT imdata->>'rols' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
@@ -756,6 +762,8 @@ def json_by_where_nconst_every_col_test():
         cur.execute(comm_sql)
         end_time = datetime.datetime.now()
         rols_use_time_ms = (end_time - start_time).microseconds
+        print('\trols 用时：', (end_time - start_time).seconds, 's')
+
 
         df_tmp = pd.DataFrame([[len_row_json, full_use_time_ms, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, profession_use_time_ms, rols_use_time_ms]],
                               columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
@@ -805,6 +813,145 @@ def json_by_where_nconst_every_col_test():
     # plt.show()
 
 
+def jsonb_by_where_nconst_every_col_test():
+    print('>>' * 50)
+    print('[INFO] 读取序列化数据')
+    time_start = datetime.datetime.now()
+    f = open('/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+             'курс/6 семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits', 'rb')
+    arr_nconst = pickle.load(file=f)
+    f.close()
+    arr_nconst = arr_nconst['nconst'].values
+    time_end = datetime.datetime.now()
+    print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+
+    print('>>' * 50)
+    print('[INFO] Start connect database')
+    conn = pg.connect(database="db_imdb",
+                      user="postgres",
+                      password="postgres",
+                      host="localhost",
+                      port="5432")
+    cur = conn.cursor()
+    print('[INFO] Connect database successfully')
+
+    i = 0
+    count_row = len(arr_nconst)
+    # 用于统计的 DataFrame
+    df_counter = pd.DataFrame([[0, 0, 0, 0, 0, 0, 0]],
+                              columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms',
+                                       'rols_ms'])
+    # TODO 取消分割
+    # for nconst in arr_nconst[:1000]:
+    for nconst in arr_nconst[:10]:
+        i += 1
+        print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
+
+        # 整个 data 行所有字段
+        comm_sql = "SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+        start_time = datetime.datetime.now()
+        try:
+            cur.execute(comm_sql)
+        except:
+            print('[INFO] 第 ' + str(i) + ' 行取消 | nconst = ', nconst)
+            continue
+        end_time = datetime.datetime.now()
+        full_use_time_ms = (end_time - start_time).microseconds
+        row = cur.fetchall()[0]
+        len_row_jsonb = len(str(row))  # JSON(B)长度
+        print('\tfull row 用时：', (end_time - start_time).seconds, 's')
+
+        # 整个 data 行的字段 nconst
+        comm_sql = "SELECT imdata->>'nconst' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        nconst_use_time_ms = (end_time - start_time).microseconds
+        print('\tnconst 用时：', (end_time - start_time).seconds, 's')
+
+
+
+        # 整个 data 行的字段 name
+        comm_sql = "SELECT imdata->>'name' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        name_use_time_ms = (end_time - start_time).microseconds
+        print('\tname 用时：', (end_time - start_time).seconds, 's')
+
+        # 整个 data 行的字段 birthYear
+        comm_sql = "SELECT imdata->>'birthYear' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        birthYear_use_time_ms = (end_time - start_time).microseconds
+        print('\tbirthYear 用时：', (end_time - start_time).seconds, 's')
+
+        # 整个 data 行的字段 profession
+        comm_sql = "SELECT imdata->>'profession' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        profession_use_time_ms = (end_time - start_time).microseconds
+        print('\tprofession 用时：', (end_time - start_time).seconds, 's')
+
+        # 整个 data 行的字段 rols
+        comm_sql = "SELECT imdata->>'rols' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+        start_time = datetime.datetime.now()
+        cur.execute(comm_sql)
+        end_time = datetime.datetime.now()
+        rols_use_time_ms = (end_time - start_time).microseconds
+        print('\trols 用时：', (end_time - start_time).seconds, 's')
+
+
+        df_tmp = pd.DataFrame([[len_row_jsonb, full_use_time_ms, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, profession_use_time_ms, rols_use_time_ms]],
+                              columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+        df_counter = pd.concat([df_counter, df_tmp])
+
+    conn.close()
+
+    df_counter = df_counter.iloc[1:, :]
+    df_counter.sort_values(by='len_row', inplace=True)
+
+    print('>>' * 50)
+    print('[INFO] 合并结束，使用序列化保存[最终]结果')
+    time_start = datetime.datetime.now()
+    f = open('./result/jsonb/res_by_nconst_all_col.bits', 'wb')
+    pickle.dump(obj=df_counter, file=f)
+    f.close()
+    time_end = datetime.datetime.now()
+    print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+
+    # print(df_counter)
+
+    """绘制结果"""
+    plt.figure(figsize=(20, 10), dpi=100)
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['full_ms'].values,
+                label='full row')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['nconst_ms'].values,
+                label='nconst')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['name_ms'].values,
+                label='name')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['birthYear_ms'].values,
+                label='birthYear')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['profession_ms'].values,
+                label='profession')
+    plt.scatter(x=df_counter['len_row'].values,
+                y=df_counter['rols_ms'].values,
+                label='rols')
+    plt.legend()
+    plt.title('Query by key `nconst` in tb_jsonb')
+    plt.xlabel('Length of JSONB')
+    plt.ylabel('Query time (milliseconds)')
+    plt.savefig('./result/jsonb/res_by_nconst_all_col.png')
+    # plt.show()
+
+
 if __name__ == '__main__':
     # json_by_id_every_col_test()
 
@@ -822,7 +969,9 @@ if __name__ == '__main__':
 
     # json_where_nconst_test()
 
-    json_by_where_nconst_every_col_test()
+    # json_by_where_nconst_every_col_test()
+
+    jsonb_by_where_nconst_every_col_test()
 
 
 
