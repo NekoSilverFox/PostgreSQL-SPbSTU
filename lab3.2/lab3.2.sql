@@ -12,19 +12,23 @@ CREATE TABLE tb_json (
 	iddata						SERIAL,
 	imdata 						JSON
 );
+CREATE INDEX IX_json_iddata ON tb_json(iddata);
 
 COPY tb_json(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json'; -- 49s
-SELECT * FROM tb_json;
+SELECT * FROM tb_json LIMIT 10;
 SELECT COUNT(*) FROM tb_json;
 
 SELECT imdata FROM tb_json WHERE imdata::json->>'name' = 'Richard Burton';
 SELECT imdata->>'name' FROM tb_json WHERE imdata::json->>'name' = 'Richard Burton';
+
+
 --------------------------------------------------------------------------------
 DROP TABLE tb_jsonb;
 CREATE TABLE tb_jsonb (
 	iddata						SERIAL,
 	imdata 						JSONB
 );
+CREATE INDEX IX_jsonb_iddata ON tb_jsonb(iddata);
 
 COPY tb_jsonb(imdata) FROM program 'sed -e ''s/\\/\\\\/g'' /Users/fox/Desktop/dump_ALL.json';  -- 79.32s
 SELECT * FROM tb_jsonb;
@@ -34,8 +38,22 @@ SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'name' = 'Richard Burton';
 SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'nconst' = 'nm0000009';
 SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->'nconst' = '"nm0000009"';
 select '{"nickname": "gs", "avatar": "avatar_url", "tags": ["python", "golang", "db"]}'::jsonb->'nickname' = '"gs"';
--------------------------------------------------------------------------------------------------------
 
+
+
+BEGIN;
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"tttttttt"'::jsonb) WHERE iddata=1;
+
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{rols}', '[{"year": 2000, "title": "t_title", "series name": "t_series", "character name": "t_character_name"}]'::jsonb) WHERE iddata=1;
+
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{nconst}', '"tt0000009"'::jsonb) WHERE iddata=1;
+
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{birthYear}', '"2222"'::jsonb) WHERE iddata=1;
+
+SELECT * FROM tb_jsonb WHERE iddata=1;
+ROLLBACK;
+-------------------------------------------------------------------------------------------------------
+Richard Burton
 
 SELECT * FROM tb_jsonb WHERE tb_jsonb.imdata::jsonb->> 'name' = 'Aditya';
 
