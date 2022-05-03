@@ -425,7 +425,6 @@ def jsonb_by_id_every_col_test():
     # plt.show()
 
 
-
 def json_update_by_id_every_col_test():
     # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
     print('>>' * 50)

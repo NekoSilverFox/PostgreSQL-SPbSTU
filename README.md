@@ -1351,6 +1351,168 @@ $$ LANGUAGE plpython3u;
 
 
 
+---
+
+### TOAST
+
+<p>
+    <!-- 在PG中，页是数据在文件存储中的基本单位，其大小是固定的且只能在编译期指定，之后无法修改，默认的大小为8KB。同时，PG不允许一行数据跨页存储。那么对于超长的行数据，PG就会启动TOAST，将大的字段压缩或切片成多个物理行存到另一张系统表中（TOAST表），这种存储方式叫行外存储。-->
+</p>
+
+В PG **страница является основной единицей хранения данных в файле**, ее размер фиксирован и может быть задан только во время компиляции и не может быть изменен впоследствии, **размер по умолчанию составляет 8 КБ**. 
+
+Кроме того, **PG не позволяет хранить строку данных на разных страницах**. Для очень длинных строк данных PG инициирует TOAST, который сжимает или нарезает большие поля на несколько физических строк и сохраняет их в другой системной таблице (таблица TOAST), этот тип хранения называется **внерядным хранением**.
+
+<p>
+    <!--
+ 在 PG 中每个表字段有四种 TOAST 的策略：
+    PLAIN —— 避免压缩和行外存储。只有那些不需要 TOAST 策略就能存放的数据类型允许选择（例如 int 类型），而对于 text 这类要求存储长度超过页大小的类型，是不允许采用此策略的。
+    EXTENDED —— 允许压缩和行外存储。一般会先压缩，如果还是太大，就会行外存储。这是大多数可以TOAST的数据类型的默认策略。
+    EXTERNAL —— 允许行外存储，但不许压缩。这让在text类型和bytea类型字段上的子串操作更快。类似字符串这种会对数据的一部分进行操作的字段，采用此策略可能获得更高的性能，因为不需要读取出整行数据再解压。
+    MAIN —— 允许压缩，但不许行外存储。不过实际上，为了保证过大数据的存储，行外存储在其它方式（例如压缩）都无法满足需求的情况下，作为最后手段还是会被启动。因此理解为：尽量不使用行外存储更贴切
+-->
+</p>
+
+**Для каждого поля таблицы в PG существует четыре стратегии TOAST.**
+
+- `PLAIN` - **позволяет избежать сжатия и хранения вне ряда**. Разрешается выбирать только те типы данных, для хранения которых не требуется политика TOAST (например, типы int), в то время как для таких типов, как текст, требующих длины хранения, превышающей размер страницы, эта политика недопустима.
+- `EXTENDED` - **позволяет сжимать и хранить вне ряда**. Как правило, сначала он сжимается, а если он все еще слишком большой, то сохраняется вне очереди. Это политика по умолчанию для большинства типов данных, которые могут быть TOASTed.
+- `EXTERNAL` - **позволяет хранить данные вне линии**, но без сжатия. Это значительно ускоряет операции подстроки для полей типа text и bytea. Такие поля, как строки, которые работают с частью данных, могут достичь более высокой производительности при использовании этой политики, поскольку нет необходимости считывать всю строку данных и затем распаковывать ее.
+- `MAIN` - **позволяет сжимать, но не хранить вне линии**. На практике, однако, внепоточное хранение активируется в крайнем случае, когда других методов (например, сжатия) недостаточно для гарантированного хранения больших данных. Поэтому правильнее будет сказать, что хранение вне ряда вообще не должно использоваться.
+
+
+
+**Просмотр политики TOAST для таблицы tb_jsonb:**
+
+```bash
+postgres=# \d+ tb_jsonb;
+
+                                                         Table "public.tb_jsonb"
+ Column |  Type   | Collation | Nullable | Storage  | Compression | Stats target | Description
+--------+---------+-----------+----------+----------+-------------+--------------+-------------
+ iddata | integer |           | not null | plain    |             |              |
+ imdata | jsonb   |           |          | extended |             |              |
+ 
+Indexes:
+    "ix_jsonb_iddata" btree (iddata)
+Access method: heap
+
+
+
+db_imdb=# select relname, relfilenode, reltoastrelid from pg_class where relname='tb_jsonb';
+ relname  | relfilenode | reltoastrelid
+----------+-------------+---------------
+ tb_jsonb |      162078 |        162082
+(1 row)
+
+
+
+
+TOAST表有三个字段：
+
+chunk_id —— 用来表示特定 TOAST 值的 OID ，可以理解为具有同样 chunk_id 值的所有行组成原表（这里的 blog ）的 TOAST 字段的一行数据。
+chunk_seq —— 用来表示该行数据在整个数据中的位置。
+chunk_data —— 该Chunk实际的数据
+
+db_imdb=# \d+ pg_toast.pg_toast_162078;
+TOAST table "pg_toast.pg_toast_162078"
+   Column   |  Type   | Storage
+------------+---------+---------
+ chunk_id   | oid     | plain
+ chunk_seq  | integer | plain
+ chunk_data | bytea   | plain
+Owning table: "public.tb_jsonb"
+Indexes:
+    "pg_toast_162078_index" PRIMARY KEY, btree (chunk_id, chunk_seq)
+Access method: heap
+
+
+postgres=# select * from pg_toast.pg_toast_162078;
+```
+
+
+
+**Тестирование политики TOAST в Postgresql**
+
+1. **==[EXTENDED]== Сравнить изменение объема БД для актера с малым кол-вом ролей**
+
+    ```sql
+    BEGIN;
+    SELECT * FROM tb_jsonb WHERE iddata=51989;
+    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
+    
+    UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
+    
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
+    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    ROLLBACK;
+    ```
+
+    
+
+2. **==[EXTENDED]== Сравнить изменение объема БД для актера с большим кол-вом ролей**
+
+    ```sql
+    BEGIN;
+    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+    
+    UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
+    
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4035007 [+10]  Byte
+    SELECT pg_table_size('tb_jsonb');  -- 1149378560 [+4136960]  Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1096 MB [+3.9453125 MB]
+    ROLLBACK;
+    ```
+
+    
+
+3. **==[EXTERNAL]== Сравнить изменение объема БД для актера с большим кол-вом ролей**
+
+    Политика TOAST изменена на EXTERNAL для отключения сжатия
+
+    ```BASH
+    postgres=# BEGIN;
+    postgres=# ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
+    
+    db_imdb=*# \d+ tb_jsonb;
+                                                             Table "public.tb_jsonb"
+     Column |  Type   | Collation | Nullable | Storage  | Compression | Stats target | Description
+    --------+---------+-----------+----------+----------+-------------+--------------+-------------
+     iddata | integer |           | not null | plain    |             |              |
+     imdata | jsonb   |           |          | external |             |              |
+    Indexes:
+        "ix_jsonb_iddata" btree (iddata)
+    Access method: heap
+    
+    ```
+
+    
+
+    可以看到在没有启动压缩的情况下，数据量明显增多
+
+    ```sql
+    BEGIN;
+    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+    UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4035007 [+10] Byte
+    SELECT pg_table_size('tb_jsonb');  -- 1165639680 [+4136960] Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1112 MB [+3.9453125 MB]
+    ROLLBACK;
+    ```
+
+    
+
+4. 
+
+
+
 
 
 
