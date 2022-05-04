@@ -1337,11 +1337,1791 @@ $$ LANGUAGE plpython3u;
 >
 > https://habr.com/ru/company/oleg-bunin/blog/646987/
 
-<img src="doc/pic/README/image-20220426124349983.png" alt="image-20220426124349983" style="zoom:50%;" />
+### IMDB-JSONB
+
+Скрипты, используемые для обработки данных:
+
+1. Из-за того, что одновременная обработка всех данных может занимать много памяти. Поэтому используйте скрипт Python для разделения набора данных на более мелкие части и их последующего объединения
+
+    Объединенный результат сохраняется в виде двоичного файла с использованием сериализации Python для уменьшения использования памяти и жесткого диска, а также для облегчения последующей обработки.
+
+    <img src="doc/pic/README/image-20220426124349983.png" alt="image-20220426124349983" style="zoom:50%;" />
+
+    ![image-20220427221234460](doc/pic/README/image-20220427221234460.png)
 
 
+    В этом сценарии можно объединить все фильмы одного актера в один
 
-![image-20220427221234460](doc/pic/README/image-20220427221234460.png)
+    ```python
+    # ------*------ coding: utf-8 ------*------
+    # @Time    : 2022/4/26 16:39
+    # @Author  : 冰糖雪狸 (NekoSilverfox)
+    # @Project : IMDB 数据处理
+    # @File    : 切割提取.py
+    # @Software: PyCharm
+    # @Github  ：https://github.com/NekoSilverFox
+    # -----------------------------------------
+    import pandas as pd
+    import numpy as np
+    import datetime
+    import pickle
+    import re
+    
+    
+    def normal_actor(source_data: pd.DataFrame, dump_name_title: str, dump_df_res: str) -> pd.DataFrame:
+        """
+        将 IMDB 的演员数据标准化为 pd.DataFrame。每个演员及其各个作品独占一行（类似于交叉表）
+        建议之前将数据通过 VS Code 处理
+        :param file_path:
+        :return: pd.DataFrame
+        """
+    
+        """
+        使用正则表达式提取作品名、上映日期、系列名，并将他们作为新的 DataFrame
+        所以取得的结果为带 MutIndex 的 DataFrame
+        """
+        print('>>' * 50)
+        print('[INFO] 开始提取字符串中的信息')
+        time_start = datetime.datetime.now()
+        list_name_title = []
+        i = 1
+        name_list = []
+        for col in source_data.values:
+            if col[0] is not np.nan:
+                names = col[0]
+                name_list = names.split(', ')
+    
+            if len(name_list) == 0:
+                continue
+    
+            for this_name in name_list:
+    
+                title_mix = col[1]
+    
+                # Регулярные выражения используются для извлечения
+                """电影标题 字符串前一部分 """
+                title = re.search(r'^[^\(\{\[]*', title_mix)
+                if title is not None:
+                    title = str(title.group()[:-1])
+    
+                """上映年份 ()"""
+                year = re.search(r'(?!=\({1})[\d]{4}(?!=\){1})', title_mix)
+                if year is not None:
+                    year = int(year.group())
+    
+                """系列名称： {}"""
+                series_name = re.search(r'\{(.*?)\}', title_mix)
+                if series_name is not None:
+                    series_name = str(series_name.group()[1:-1])
+    
+                """角色名称"""
+                character_name = re.search(r'\[(.*?)\]', title_mix)
+                if character_name is not None:
+                    character_name = str(character_name.group()[1:-1])
+                # name_title.append([this_name, title, series_name, year, character_name])
+                # name_title.append([this_name, [title, series_name, year, character_name]])
+                rols = pd.DataFrame([[title, series_name, year, character_name]],
+                                    columns=['title', 'series name', 'year', 'character name'])
+    
+                list_name_title.append([this_name, rols])  # this_name 是 str, rols 是DataFrame
+    
+            if i % 10000 == 0:
+                use_sec = (datetime.datetime.now() - time_start).seconds
+                print('[INFO] 已处理 ', i, ' 行 | ', (i / source_data.shape[0]) * 100, '% | 已用时：', use_sec, ' 秒（', use_sec / 60,
+                      '）分钟')
+            i += 1
+    
+        use_sec = (datetime.datetime.now() - time_start).seconds
+        print('[INFO] 数据提取结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
+    
+        """将取得的结果 df_name_title 为带 MutIndex 的 DataFrame"""
+        print('>>' * 50)
+        print('[INFO] 将取得的结果 df_name_title 为带 MutIndex 的 DataFrame')
+        time_start = datetime.datetime.now()
+        df_name_title = pd.DataFrame(list_name_title, columns=['name', 'rols'])
+        list_name_title = []
+        df_name_title.sort_values(by='name', inplace=True)
+        df_name_title.reset_index(drop=True, inplace=True)
+        use_sec = (datetime.datetime.now() - time_start).seconds
+        print('[INFO] DataFrame 转换结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
+    
+        # print('>>' * 50)
+        # print('[INFO] 开始序列化（备份）df_name_title')
+        # time_start = datetime.datetime.now()
+        # f = open(dump_name_title, 'wb')
+        # pickle.dump(obj=df_name_title, file=f)
+        # f.close()
+        # use_sec = (datetime.datetime.now() - time_start).seconds
+        # print('[INFO] 序列化（备份）结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
+    
+        """合并重复的 name，使其唯一。rols 中增加同一演员的信息"""
+        print('>>' * 50)
+        print('[INFO] 开始合并重复的 name')
+        time_start = datetime.datetime.now()
+        name = None
+        tmp_df_rols = []
+        res_list_name_rols = []
+        for i in range(df_name_title.shape[0]):
+    
+            """如果为同一人，即将作品合并的到一个 DataFrame 中"""
+            if name == df_name_title.loc[i]['name']:
+                tmp_df_rols = pd.concat([tmp_df_rols, df_name_title.loc[i]['rols']])
+    
+            else:
+                """开始下一个人
+                    先将上一个人的信息写入到新的 list 中，再重置 name 和 tmp_df_rols 为当前行的内容
+                """
+                if name is not None:
+                    res_list_name_rols.append([name, tmp_df_rols])
+    
+                    # if name == '$haniqua':
+                    #     print(tmp_df_rols)
+    
+                name = df_name_title.loc[i]['name']
+                tmp_df_rols = df_name_title.loc[i]['rols']
+    
+            if i % 10000 == 0:
+                use_sec = (datetime.datetime.now() - time_start).seconds
+                print('[INFO] 已处理 ', i, ' 行 | ', (i / df_name_title.shape[0]) * 100, '% | 已用时：', use_sec, ' 秒（',
+                      use_sec / 60, '）分钟')
+    
+        res_list_name_rols = pd.DataFrame(data=res_list_name_rols, columns=['name', 'rols'])
+    
+        # print('>>' * 50)
+        # print('[INFO] 开始序列化（备份）res_list_name_rols')
+        # time_start = datetime.datetime.now()
+        # f = open(dump_df_res, 'wb')
+        # pickle.dump(obj=res_list_name_rols, file=f)
+        # f.close()
+        # use_sec = (datetime.datetime.now() - time_start).seconds
+        # print('[INFO] 序列化（备份）res_list_name_rols 结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
+    
+        return res_list_name_rols
+    
+    
+    if __name__ == '__main__':
+        print('>>' * 50)
+        print('[INFO] 开始执行')
+    
+        ##################################################################################################################
+        # 演员信息表
+        print('>>' * 50)
+        print('[INFO] 开始读取 `name.basics.tsv`')
+        time_start = datetime.datetime.now()
+        df_name_info = pd.read_csv(
+            filepath_or_buffer='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt'
+                               '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/name.basics.tsv',
+            header=0,
+            sep='\t'
+        )
+        df_name_info = df_name_info.iloc[:, :-1]
+        df_name_info.columns = ['nconst', 'name', 'birthYear', 'deathYear', 'profession']
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取 `name.basics.tsv`结束，用时：', (time_end - time_start).seconds, ' 秒')
+        ##################################################################################################################
+    
+        ##################################################################################################################
+        # 处理缺失值为 None，方便转换为 JSON
+        print('>>' * 50)
+        print('[INFO] 开始处理缺失值为 None 并移除重复值，方便转换为 JSON')
+        time_start = datetime.datetime.now()
+        df_name_info.replace(to_replace=['\\N', np.nan], value=None, inplace=True)
+        df_name_info.drop_duplicates(subset='name', keep='first', inplace=True)
+        time_end = datetime.datetime.now()
+        print('[INFO] 处理缺失值并移除重复值结束，用时：', (time_end - time_start).seconds, ' 秒')
+        ##################################################################################################################
+    
+    
+        ##################################################################################################################
+        print('>>' * 50)
+        print('[INFO] 开始读取文件', '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt'
+                               '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 '
+                               'семестр/СУБД/资料/DataSet/data_actors.list.txt')
+        time_start = datetime.datetime.now()
+        # source_data = pd.read_csv(
+        #     filepath_or_buffer='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+        #               'курс/6 семестр/СУБД/资料/DataSet/data_actresses.list.txt',
+        #     header=0,
+        #     sep='\t'
+        # )
+    
+        # 男演员列表df
+        source_data = pd.read_csv(
+            filepath_or_buffer='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+                      'курс/6 семестр/СУБД/资料/DataSet/data_actors.list.txt',
+            header=0,
+            sep='\t'
+        )
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取文件结束，用时：', (time_end - time_start).seconds, ' 秒')
+    
+    
+    
+        print('>>' * 50)
+        print('[INFO] 开始数据预处理')
+        time_start = datetime.datetime.now()
+        source_data.columns = ['name', 't1', 't2', 't3']
+        source_data['t1'].fillna(value='', inplace=True)
+        source_data['t2'].fillna(value='', inplace=True)
+        source_data['t3'].fillna(value='', inplace=True)
+    
+        movie_list = source_data['t1'] + source_data['t2'] + source_data['t3']
+        source_data = pd.concat([source_data['name'], movie_list], axis=1)
+        source_data.columns = ['name', 'title_mix']
+    
+        # source_data = source_data.iloc[:1000, :]
+    
+        time_end = datetime.datetime.now()
+        print('[INFO] 数据预处理结束，用时：', (time_end - time_start).seconds, ' 秒')
+    
+    
+        start_index = 0
+        step_index = 1000000
+        end_index = start_index + step_index
+        times = 31
+    
+    
+    
+        for i in range(1, times):
+            print('\n\n')
+            print('>>' * 20, ' 开始执行第 ', i, ' 个循环', '<<' * 20)
+    
+            tmp_source_data = source_data.iloc[start_index:end_index, :]
+    
+            ##################################################################################################################
+            # # 女演员列表df
+            # print('[INFO]  main -> 开始处理 `data_actresses.list.txt`')
+            # df_actresses = normal_actor(
+            #     source_data=tmp_source_data,
+            #     dump_name_title='./result/dump_df_actresses_name_title.bits',
+            #     dump_df_res='./result/dump_df_actresses.bits'
+            # )
+            # tmp_source_data = None
+            # print('[INFO] main <- 处理 `data_actresses.list.txt`结束')
+            ##################################################################################################################
+    
+    
+            ##################################################################################################################
+            # # 男演员列表df
+            # print('[INFO] Start handle `data_actors.list.txt`')
+            # df_actors = normal_actor(
+            #     file_path='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+            #               'курс/6 семестр/СУБД/资料/DataSet/data_actors.list.txt'
+            # )
+            print('[INFO]  main -> 开始处理 `data_actors.list.txt`')
+            df_actresses = normal_actor(
+                source_data=tmp_source_data,
+                dump_name_title='./result/dump_df_actors_name_title.bits',
+                dump_df_res='./result/dump_df_actors.bits'
+            )
+            tmp_source_data = None
+            print('[INFO] main <- 处理 `data_actresses.list.txt`结束')
+            ##################################################################################################################
+    
+            ##################################################################################################################
+            print('>>' * 50)
+            print('[INFO] 开始 merge 两张大表，以处理为最终结果')
+            time_start = datetime.datetime.now()
+            df_all = pd.merge(left=df_name_info,
+                              right=df_actresses,
+                              how='inner',
+                              on='name')
+            time_end = datetime.datetime.now()
+            print('[INFO] merge 结束，用时：', (time_end - time_start).seconds, ' 秒')
+    
+            df_actresses = None
+            print('[INFO] 释放内存')
+            ##################################################################################################################
+    
+            print('>>' * 50)
+            print('[INFO] 开始序列化（备份）合并后的最终结果')
+            time_start = datetime.datetime.now()
+            dump_df_res = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/result_dump_actors/dump_actors_' + str(i) +'.bits'
+            f = open(dump_df_res, 'wb')
+            pickle.dump(obj=df_all, file=f)
+            f.close()
+            use_sec = (datetime.datetime.now() - time_start).seconds
+            print('[INFO] 序列化（备份）合并后的最终结果结束，用时：', use_sec, ' 秒（', use_sec / 60, '）分钟')
+    
+    
+            ##################################################################################################################
+            print('[INFO] Start write to JSON file')
+            df_all.to_json(
+                path_or_buf='/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity'
+                            '/СПБПУ/3 курс/6 семестр/СУБД/资料/DataSet/result_json_actors/df_final_actors_' + str(i) + '.json',
+                orient='records',
+                lines=True)
+            print('[INFO] JSON 写入完成')
+            df_all = None
+            print('[INFO] 释放内存')
+            ##################################################################################################################
+    
+            start_index += step_index
+            end_index += step_index
+    
+        pass
+    
+    ```
+
+    
+
+2. Десериализовать все полученные малые наборы данных и сшить их вместе в большой набор данных, а также удалить дублирующиеся значения
+
+    ```python
+    # ------*------ coding: utf-8 ------*------
+    # @Time    : 2022/4/27 14:37
+    # @Author  : 冰糖雪狸 (NekoSilverfox)
+    # @Project : IMDB 数据处理
+    # @File    : 反序列化数据.py.py
+    # @Software: PyCharm
+    # @Github  ：https://github.com/NekoSilverFox
+    # -----------------------------------------
+    import pickle
+    import datetime
+    import pandas as pd
+    
+    
+    def concat_df(bits_file_path_header: str,
+                  max_index: int,
+                  path_result_bits_save: str) -> pd.DataFrame:
+        """
+        从许多序列化文件中反序列化，并且拼接他们
+        :param bits_file_path_header: 序列化文件的【文件头】
+        :param max_index: 文件头的最大索引
+        :param path_result_bits_save: 合并结果的反序列化保存位置
+        :return: 反序列化后的 DataFrame
+        """
+        df_result = None
+    
+        for i in range(1, max_index + 1):
+            print('-' * 50)
+            print('[INFO] 开始读取第 ', i, '个文件')
+            time_start = datetime.datetime.now()
+            bits_file_path = bits_file_path_header + str(i) + '.bits'
+            f = open(bits_file_path, 'rb')
+            df_obj = pickle.load(file=f)
+            f.close()
+            time_end = datetime.datetime.now()
+            print('[INFO] 读取第 ', i, '个文件结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+            if i == 1:
+                df_result = df_obj
+                continue
+    
+            print('[INFO] 开始拼接第 ', i, '个文件')
+            time_start = datetime.datetime.now()
+            df_result = pd.concat([df_result, df_obj])
+            time_end = datetime.datetime.now()
+            print('[INFO] 拼接第 ', i, '个文件结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # 合并结束，使用序列化保存结果
+        print('-' * 50)
+        print('[INFO] 合并结束，使用序列化保存结果')
+        time_start = datetime.datetime.now()
+        f = open(path_result_bits_save, 'wb')
+        pickle.dump(obj=df_result, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        return df_result
+    
+    
+    def merge_duplicates(df_source: pd.DataFrame) -> pd.DataFrame:
+        """
+        将最终的结果再次去重
+        :param df_source: 合并男女演员是数组
+        :return: 合并去重后的 DataFrame
+        """
+        df_source.sort_values(by='nconst', inplace=True)
+        df_source.reset_index(drop=True, inplace=True)
+    
+        i_current = 0
+        i_next = i_current + 1
+        stop_index = df_source.shape[0]
+        while i_next <= stop_index:
+            while df_source.loc[i_current]['nconst'] == df_source.loc[i_next]['nconst']:
+                df_source.loc[i_current]['rols'] = pd.concat([df_source.loc[i_current]['rols'], df_source.loc[i_next]['rols']])
+                df_source.drop(index=i_next, inplace=True)
+                i_next += 1
+    
+                if i_next == stop_index:
+                    df_source.reset_index(drop=True, inplace=True)
+                    return df_source
+    
+            print('[INFO] 已合并 ', i_current, ' 行 | ', round(i_current / df_source.shape[0] * 100, 4), '%')
+            i_current = i_next
+            i_next += 1
+    
+        df_source.reset_index(drop=True, inplace=True)
+        return df_source
+    
+    
+    if __name__ == '__main__':
+        ################################################################################################################
+        # 合并所有男演员（actors）
+        ################################################################################################################
+        print('>>' * 50)
+        bits_file_path_header = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
+                                '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
+                                'семестр/СУБД/资料/DataSet/result_dump_actors/dump_actors_'
+    
+        path_result_bits_save = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
+                                '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
+                                'семестр/СУБД/资料/DataSet/result_dump_actors/dump_actors_ALL.bits'
+    
+        df_all_actors = concat_df(bits_file_path_header=bits_file_path_header,
+                                  max_index=20,
+                                  path_result_bits_save=path_result_bits_save)
+        print('[INFO] 合并并序列化输出成功！\n输出至：', path_result_bits_save)
+    
+    
+        ################################################################################################################
+        # 合并所有女演员（actors）
+        ################################################################################################################
+        print('>>' * 50)
+        bits_file_path_header = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
+                                '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
+                                'семестр/СУБД/资料/DataSet/result_dump_actresses/dump_actresses_'
+    
+        path_result_bits_save = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
+                                '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
+                                'семестр/СУБД/资料/DataSet/result_dump_actresses/dump_actresses_ALL.bits'
+    
+        df_all_actresses = concat_df(bits_file_path_header=bits_file_path_header,
+                                     max_index=13,
+                                     path_result_bits_save=path_result_bits_save)
+        print('[INFO] 合并并序列化输出成功！\n输出至：', path_result_bits_save)
+    
+    
+        ################################################################################################################
+        # 合并所有男演员（actors）和女演员（actors）
+        ################################################################################################################
+        print('>>' * 50)
+        print('[INFO] 合并所有男演员（actors）和女演员（actors）')
+        time_start = datetime.datetime.now()
+    
+        df_result_all = pd.concat([df_all_actors, df_all_actresses])
+    
+        time_end = datetime.datetime.now()
+        print('[INFO] 合并所有男演员（actors）和女演员（actors）结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        ################################################################################################################
+        df_all_actors = None
+        df_all_actresses = None
+        print('[INFO] 内存释放')
+        ################################################################################################################
+    
+    
+        ################################################################################################################
+        # 合并后的最终结果再次去重
+        ################################################################################################################
+        print('>>' * 50)
+        print('[INFO] 合并后的最终结果再次去重')
+        time_start = datetime.datetime.now()
+        df_result_all = merge_duplicates(df_source=df_result_all)
+        time_end = datetime.datetime.now()
+        print('[INFO] 合并后的最终结果再次去重结束：', (time_end - time_start).seconds, ' 秒\n')  # [INFO] 合并后的最终结果再次去重结束： 9714  秒
+    
+        ################################################################################################################
+        # 合并后的最终结果再序列化并保存为 JSON 文件
+        ################################################################################################################
+        path_result_bits_save = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
+                                '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
+                                'семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits'
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open(path_result_bits_save, 'wb')
+        pickle.dump(obj=df_result_all, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+    
+        path_result_json_save = '/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt' \
+                                '.PetersburgPolytechnicalUniversity/СПБПУ/3 курс/6 ' \
+                                'семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.json'
+        print('>>' * 50)
+        print('[INFO] 保存[最终]结果为 JSON')
+        time_start = datetime.datetime.now()
+        df_result_all.to_json(path_or_buf=path_result_json_save,
+                              orient='records',
+                              lines=True)
+        time_end = datetime.datetime.now()
+        print('[INFO] 保存[最终]结果为 JSON，用时：', (time_end - time_start).seconds, ' 秒\n')
+        ################################################################################################################
+        pass
+    
+    ```
+
+    
+
+3. Выполнение тестов на скорость, сериализация и построение результатов в виде изображений
+
+    ```sql
+    # ------*------ coding: utf-8 ------*------
+    # @Time    : 2022/4/28 14:22
+    # @Author  : 冰糖雪狸 (NekoSilverfox)
+    # @Project : JSON 速度测试
+    # @File    : 速度测试.py
+    # @Software: PyCharm
+    # @Github  ：https://github.com/NekoSilverFox
+    # -----------------------------------------
+    import psycopg2 as pg
+    import matplotlib.pyplot as plt
+    import pandas as pd
+    import datetime
+    import pickle
+    
+    
+    def get_id_len_json_df():
+        """
+        获取数据库中每个 ID 对应 JSON data 的长度
+        :return:
+        """
+        # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        # 获取行数
+        cur.execute("SELECT COUNT(*) FROM tb_json;")
+        count_row = cur.fetchall()[0][0]
+        print('行数：', count_row)
+    
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0]], columns=['id', 'len_json'])
+    
+        # 执行查询并记录时间
+        for i in range(1, count_row):
+            print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+    
+            comm_sql = 'SELECT imdata FROM tb_json WHERE iddata=' + str(i) + ';'
+            cur.execute(comm_sql)
+            len_row_json = len(str(cur.fetchall()[0]))  # JSON(B)长度
+    
+            df_tmp = pd.DataFrame([[i, len_row_json]], columns=['id', 'len_json'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_json', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/df_id_json_len.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+    
+    def json_by_id_only_full_row_test():
+        # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        # 获取行数
+        cur.execute("SELECT COUNT(*) FROM tb_json;")
+        count_row = cur.fetchall()[0][0]
+        print('行数：', count_row)
+    
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+    
+        # 执行查询并记录时间
+        for i in range(1, 3000):
+            print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+    
+            comm_sql = 'SELECT imdata FROM tb_json WHERE iddata=' + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            use_time_ms = (end_time - start_time).microseconds
+            # print('用时：', (end_time - start_time).microseconds, 'ms')
+    
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+    
+            df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/json/res_id.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['use_time_ms'].values)
+        plt.title('Query by key `ID` in tb_json')
+        plt.xlabel('Length of JSON')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/json/res_id.png')
+        # plt.show()
+    
+    
+    def jsonb_by_id_only_full_row_test():
+        # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        # 获取行数
+        cur.execute("SELECT COUNT(*) FROM tb_jsonb;")
+        count_row = cur.fetchall()[0][0]
+        print('行数：', count_row)
+    
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+    
+        # 执行查询并记录时间
+        for i in range(1, 3000):
+            print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+            comm_sql = 'SELECT imdata FROM tb_jsonb WHERE iddata=' + str(i) + ';'
+    
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            use_time_ms = (end_time - start_time).microseconds
+            # print('用时：', (end_time - start_time).microseconds, 'ms')
+    
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+    
+            df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/jsonb/res_id.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['use_time_ms'].values)
+        plt.title('Query by key `ID` in tb_jsonb')
+        plt.xlabel('Length of JSONB')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/jsonb/res_id.png')
+        # plt.show()
+    
+    
+    def json_by_id_every_col_test():
+        # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        # 获取行数
+        cur.execute("SELECT COUNT(*) FROM tb_json;")
+        count_row = cur.fetchall()[0][0]
+        print('行数：', count_row)
+    
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0, 0, 0, 0, 0, 0]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+    
+        # 执行查询并记录时间
+        for i in range(1, count_row):
+            print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+    
+            # 整个 data 行所有字段
+            comm_sql = 'SELECT imdata FROM tb_json WHERE iddata=' + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            full_use_time_ms = (end_time - start_time).microseconds
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+    
+            # 整个 data 行的字段 nconst
+            comm_sql = "SELECT imdata->>'nconst' FROM tb_json WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            nconst_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 name
+            comm_sql = "SELECT imdata->>'name' FROM tb_json WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            name_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 birthYear
+            comm_sql = "SELECT imdata->>'birthYear' FROM tb_json WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            birthYear_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 profession
+            comm_sql = "SELECT imdata->>'profession' FROM tb_json WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            profession_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 rols
+            comm_sql = "SELECT imdata->>'rols' FROM tb_json WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            rols_use_time_ms = (end_time - start_time).microseconds
+    
+            df_tmp = pd.DataFrame([[len_row_json, full_use_time_ms, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, profession_use_time_ms, rols_use_time_ms]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/json/res_id_ix_every_col.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['full_ms'].values,
+                    label='full row')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['nconst_ms'].values,
+                    label='nconst')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['name_ms'].values,
+                    label='name')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['birthYear_ms'].values,
+                    label='birthYear')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['profession_ms'].values,
+                    label='profession')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['rols_ms'].values,
+                    label='rols')
+        plt.legend()
+        plt.title('Query by key `ID` in tb_json')
+        plt.xlabel('Length of JSON')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/json/res_id_ix_every_col.png')
+        # plt.show()
+    
+    
+    def jsonb_by_id_every_col_test():
+        # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        # 获取行数
+        cur.execute("SELECT COUNT(*) FROM tb_jsonb;")
+        count_row = cur.fetchall()[0][0]
+        print('行数：', count_row)
+    
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0, 0, 0, 0, 0, 0]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+    
+        # 执行查询并记录时间
+        for i in range(1, count_row):
+            print('[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+    
+            # 整个 data 行所有字段
+            comm_sql = 'SELECT imdata FROM tb_jsonb WHERE iddata=' + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            full_use_time_ms = (end_time - start_time).microseconds
+            row = cur.fetchall()[0]
+            len_row_jsonb = len(str(row))  # JSON(B)长度
+    
+            # 整个 data 行的字段 nconst
+            comm_sql = "SELECT imdata->>'nconst' FROM tb_jsonb WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            nconst_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 name
+            comm_sql = "SELECT imdata->>'name' FROM tb_jsonb WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            name_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 birthYear
+            comm_sql = "SELECT imdata->>'birthYear' FROM tb_jsonb WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            birthYear_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 profession
+            comm_sql = "SELECT imdata->>'profession' FROM tb_jsonb WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            profession_use_time_ms = (end_time - start_time).microseconds
+    
+            # 整个 data 行的字段 rols
+            comm_sql = "SELECT imdata->>'rols' FROM tb_jsonb WHERE iddata=" + str(i) + ';'
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            rols_use_time_ms = (end_time - start_time).microseconds
+    
+            df_tmp = pd.DataFrame([[len_row_jsonb, full_use_time_ms, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, profession_use_time_ms, rols_use_time_ms]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/jsonb/res_id_ix_every_col.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['full_ms'].values,
+                    label='full row')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['nconst_ms'].values,
+                    label='nconst')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['name_ms'].values,
+                    label='name')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['birthYear_ms'].values,
+                    label='birthYear')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['profession_ms'].values,
+                    label='profession')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['rols_ms'].values,
+                    label='rols')
+        plt.legend()
+        plt.title('Query by key `ID` in tb_jsonb')
+        plt.xlabel('Length of JSONB')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/jsonb/res_id_ix_every_col.png')
+        # plt.show()
+    
+    
+    def json_update_by_id_every_col_test():
+        # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        # 获取行数
+        cur.execute("SELECT COUNT(*) FROM tb_json;")
+        count_row = cur.fetchall()[0][0]
+        print('行数：', count_row)
+    
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0, 0, 0, 0]],
+                                  columns=['len_row', 'nconst_ms', 'name_ms', 'birthYear_ms', 'rols_ms'])
+    
+        # 执行查询并记录时间
+        for i in range(1, count_row):
+            print('\n[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+    
+            try:
+                # 整个 data 行所有字段
+                comm_sql = 'SELECT imdata FROM tb_json WHERE iddata=' + str(i) + ';'
+                cur.execute(comm_sql)
+                len_row_json = len(str(cur.fetchall()[0]))  # JSON(B)长度
+    
+                cur.execute('BEGIN;')
+    
+                print('\tBEGIN;')
+    
+                # 整个 data 行的字段 nconst
+                comm_sql = "UPDATE tb_json SET imdata=jsonb_set(imdata::jsonb, '{nconst}', '\"tt0000009\"'::jsonb) WHERE iddata=" + str(i) + ';'
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                nconst_use_time_ms = (end_time - start_time).microseconds
+                print('\tnconst 测试结束, 用时：', nconst_use_time_ms, ' ms')
+    
+                # 整个 data 行的字段 name
+                comm_sql = "UPDATE tb_json SET imdata=jsonb_set(imdata::jsonb, '{name}', '\"tt_name\"'::jsonb) WHERE iddata=" + str(i) + ';'
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                name_use_time_ms = (end_time - start_time).microseconds
+                print('\tname 测试结束, 用时：', name_use_time_ms, ' ms')
+    
+                # 整个 data 行的字段 birthYear
+                comm_sql = "UPDATE tb_json SET imdata=jsonb_set(imdata::jsonb, '{birthYear}', '\"2222\"'::jsonb) WHERE iddata=" + str(i) + ';'
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                birthYear_use_time_ms = (end_time - start_time).microseconds
+                print('\tbirthYear 测试结束, 用时：', birthYear_use_time_ms, ' ms')
+    
+                # 整个 data 行的字段 rols
+                comm_sql = 'UPDATE tb_json SET imdata=jsonb_set(imdata::jsonb, \'{rols}\', \'[{"year": 2000, "title": "t_title", "series name": "t_series", "character name": "t_character_name"}]\'::jsonb) WHERE iddata=' + str(i) + ';'
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                rols_use_time_ms = (end_time - start_time).microseconds
+                print('\trols 测试结束, 用时：', rols_use_time_ms, ' ms')
+    
+            except:
+                cur.execute('ROLLBACK;')
+                continue
+    
+            cur.execute('ROLLBACK;')
+            df_tmp = pd.DataFrame([[len_row_json, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, rols_use_time_ms]],
+                                  columns=['len_row', 'nconst_ms', 'name_ms', 'birthYear_ms', 'rols_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/json/res_update_id_ix_every_col.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['nconst_ms'].values,
+                    label='nconst')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['name_ms'].values,
+                    label='name')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['birthYear_ms'].values,
+                    label='birthYear')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['rols_ms'].values,
+                    label='rols')
+        plt.legend()
+        plt.title('Test UPDATE, query by key `ID` in tb_json')
+        plt.xlabel('Length of JSON')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/json/res_update_id_ix_every_col.png')
+        # plt.show()
+    
+    
+    def jsonb_update_by_id_every_col_test():
+        # 如果数据库不存在，那么它将自动创建，最后将返回一个数据库对象
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        # 获取行数
+        cur.execute("SELECT COUNT(*) FROM tb_jsonb;")
+        count_row = cur.fetchall()[0][0]
+        print('行数：', count_row)
+    
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0, 0, 0, 0]],
+                                  columns=['len_row', 'nconst_ms', 'name_ms', 'birthYear_ms', 'rols_ms'])
+    
+        # 执行查询并记录时间
+        for i in range(1, count_row):
+            print('\n[INFO] 正在测试第 ' + str(i) + '行 | ' + str(round(i / count_row * 100, 4)) + '%')
+    
+            try:
+                # 整个 data 行所有字段
+                comm_sql = 'SELECT imdata FROM tb_jsonb WHERE iddata=' + str(i) + ';'
+                cur.execute(comm_sql)
+                len_row_jsonb = len(str(cur.fetchall()[0]))  # JSON(B)长度
+    
+                cur.execute('BEGIN;')
+    
+                print('\tBEGIN;')
+    
+                # 整个 data 行的字段 nconst
+                comm_sql = "UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{nconst}', '\"tt0000009\"'::jsonb) WHERE iddata=" + str(i) + ';'
+                # comm_sql = "UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, \'{nconst}\', \'\"tt0000009\"\'::jsonb) WHERE iddata=" + str(i) + ';'
+                # print(comm_sql)
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                nconst_use_time_ms = (end_time - start_time).microseconds
+                print('\tnconst 测试结束, 用时：', nconst_use_time_ms, ' ms')
+    
+                # 整个 data 行的字段 name
+                comm_sql = "UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '\"tt_name\"'::jsonb) WHERE iddata=" + str(i) + ';'
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                name_use_time_ms = (end_time - start_time).microseconds
+                print('\tname 测试结束, 用时：', name_use_time_ms, ' ms')
+    
+                # 整个 data 行的字段 birthYear
+                comm_sql = "UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{birthYear}', '\"2222\"'::jsonb) WHERE iddata=" + str(i) + ';'
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                birthYear_use_time_ms = (end_time - start_time).microseconds
+                print('\tbirthYear 测试结束, 用时：', birthYear_use_time_ms, ' ms')
+    
+                # 整个 data 行的字段 rols
+                comm_sql = 'UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, \'{rols}\', \'[{"year": 2000, "title": "t_title", "series name": "t_series", "character name": "t_character_name"}]\'::jsonb) WHERE iddata=' + str(i) + ';'
+                start_time = datetime.datetime.now()
+                cur.execute(comm_sql)
+                end_time = datetime.datetime.now()
+                rols_use_time_ms = (end_time - start_time).microseconds
+                print('\trols 测试结束, 用时：', rols_use_time_ms, ' ms')
+    
+            except:
+                cur.execute('ROLLBACK;')
+                continue
+    
+            cur.execute('ROLLBACK;')
+            df_tmp = pd.DataFrame([[len_row_jsonb, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, rols_use_time_ms]],
+                                  columns=['len_row', 'nconst_ms', 'name_ms', 'birthYear_ms', 'rols_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/jsonb/res_update_id_ix_every_col.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['nconst_ms'].values,
+                    label='nconst')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['name_ms'].values,
+                    label='name')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['birthYear_ms'].values,
+                    label='birthYear')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['rols_ms'].values,
+                    label='rols')
+        plt.legend()
+        plt.title('Test UPDATE, query by key `ID` in tb_jsonb')
+        plt.xlabel('Length of JSONB')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/jsonb/res_update_id_ix_every_col.png')
+        # plt.show()
+    
+    
+    def json_where_name_test():
+        print('>>' * 50)
+        print('[INFO] 读取序列化数据')
+        time_start = datetime.datetime.now()
+        f = open('/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+                 'курс/6 семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits', 'rb')
+        arr_name = pickle.load(file=f)
+        f.close()
+        arr_name = arr_name['name'].values
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        i = 0
+        count_row = len(arr_name)
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+        # TODO 取消分割
+        for name in arr_name[244:250]:
+            i += 1
+            print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | name = ', name)
+    
+            comm_sql = "SELECT imdata FROM tb_json WHERE imdata::json->> 'name' = '" + name + "';"
+            start_time = datetime.datetime.now()
+            try:
+                cur.execute(comm_sql)
+            except:
+                print('[INFO] 第 ' + str(i) + ' 行取消 | name = ', name)
+                continue
+            end_time = datetime.datetime.now()
+            use_time_ms = (end_time - start_time).microseconds
+            # print('用时：', (end_time - start_time).microseconds, 'ms')
+    
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+            df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/json/res_name.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['use_time_ms'].values)
+        plt.title('Query by key `name` in tb_json')
+        plt.xlabel('Length of JSON')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/json/res_name.png')
+        # plt.show()  # TODO 注释掉
+    
+    
+    def jsonb_where_name_test():
+        print('>>' * 50)
+        print('[INFO] 读取序列化数据')
+        time_start = datetime.datetime.now()
+        f = open('/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+                 'курс/6 семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits', 'rb')
+        arr_name = pickle.load(file=f)
+        f.close()
+        arr_name = arr_name['name'].values
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        i = 0
+        count_row = len(arr_name)
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+        # TODO 取消分割
+        for name in arr_name[:3000]:
+            i += 1
+            print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | name = ', name)
+    
+            comm_sql = "SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'name' = '" + name + "';"
+            start_time = datetime.datetime.now()
+            try:
+                cur.execute(comm_sql)
+            except:
+                print('[INFO] 第 ' + str(i) + ' 行取消 | name = ', name)
+                continue
+            end_time = datetime.datetime.now()
+            use_time_ms = (end_time - start_time).microseconds
+            # print('用时：', (end_time - start_time).microseconds, 'ms')
+    
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+            df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+            # print(rows)  # TODO 注释掉
+            # print(len(str(rows)))  # TODO 注释掉
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/jsonb/res_name.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['use_time_ms'].values)
+        plt.title('Query by key `name` in tb_jsonb')
+        plt.xlabel('Length of JSONB')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/jsonb/res_name.png')
+        # plt.show()  # TODO 注释掉
+    
+    
+    def json_by_where_nconst_only_full_row_test():
+        print('>>' * 50)
+        print('[INFO] 读取序列化数据')
+        time_start = datetime.datetime.now()
+        f = open('/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+                 'курс/6 семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits', 'rb')
+        arr_nconst = pickle.load(file=f)
+        f.close()
+        arr_nconst = arr_nconst['nconst'].values
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        i = 0
+        count_row = len(arr_nconst)
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+        # TODO 取消分割
+        for nconst in arr_nconst[:1000]:
+            i += 1
+            print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
+    
+            comm_sql = "SELECT imdata FROM tb_json WHERE imdata::json->> 'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            try:
+                cur.execute(comm_sql)
+            except:
+                print('[INFO] 第 ' + str(i) + ' 行取消 | nconst = ', nconst)
+                continue
+            end_time = datetime.datetime.now()
+            use_time_ms = (end_time - start_time).microseconds
+            print('\t用时：', (end_time - start_time).seconds, 's')
+    
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+            df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/json/res_nconst.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['use_time_ms'].values)
+        plt.title('Query by key `nconst` in tb_json')
+        plt.xlabel('Length of JSON')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/json/res_nconst.png')
+        # plt.show()  # TODO 注释掉
+    
+    
+    def jsonb_by_where_nconst_only_full_row_test():
+        print('>>' * 50)
+        print('[INFO] 读取序列化数据')
+        time_start = datetime.datetime.now()
+        f = open('/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+                 'курс/6 семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits', 'rb')
+        arr_nconst = pickle.load(file=f)
+        f.close()
+        arr_nconst = arr_nconst['nconst'].values
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        i = 0
+        count_row = len(arr_nconst)
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0]], columns=['len_row', 'use_time_ms'])
+        # TODO 取消分割
+        for nconst in arr_nconst[:3000]:
+            i += 1
+            print('\n[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
+    
+            comm_sql = "SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->> 'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            try:
+                cur.execute(comm_sql)
+            except:
+                print('[INFO] 第 ' + str(i) + ' 行取消 | nconst = ', nconst)
+                continue
+            end_time = datetime.datetime.now()
+            use_time_ms = (end_time - start_time).microseconds
+            print('\t用时：', (end_time - start_time).seconds, 's')
+    
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+            df_tmp = pd.DataFrame([[len_row_json, use_time_ms]], columns=['len_row', 'use_time_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/jsonb/res_nconst.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['use_time_ms'].values)
+        plt.title('Query by key `nconst` in tb_jsonb')
+        plt.xlabel('Length of JSONB')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/jsonb/res_nconst.png')
+        # plt.show()  # TODO 注释掉
+    
+    
+    def json_by_where_nconst_every_col_test():
+        print('>>' * 50)
+        print('[INFO] 读取序列化数据')
+        time_start = datetime.datetime.now()
+        f = open('/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+                 'курс/6 семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits', 'rb')
+        arr_nconst = pickle.load(file=f)
+        f.close()
+        arr_nconst = arr_nconst['nconst'].values
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        i = 0
+        count_row = len(arr_nconst)
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0, 0, 0, 0, 0, 0]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms',
+                                           'rols_ms'])
+        # TODO 取消分割
+        # for nconst in arr_nconst[:2000]:
+        for nconst in arr_nconst[:10]:
+            i += 1
+            print('\n[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / count_row * 100, 4)) + '% | nconst = ', nconst)
+    
+            # 整个 data 行所有字段
+            comm_sql = "SELECT imdata FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            try:
+                cur.execute(comm_sql)
+            except:
+                print('[INFO] 第 ' + str(i) + ' 行取消 | nconst = ', nconst)
+                continue
+            end_time = datetime.datetime.now()
+            full_use_time_ms = (end_time - start_time).microseconds
+            row = cur.fetchall()[0]
+            len_row_json = len(str(row))  # JSON(B)长度
+            print('\tfull row 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 nconst
+            comm_sql = "SELECT imdata->>'nconst' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            nconst_use_time_ms = (end_time - start_time).microseconds
+            print('\tnconst 用时：', (end_time - start_time).seconds, 's')
+    
+    
+    
+            # 整个 data 行的字段 name
+            comm_sql = "SELECT imdata->>'name' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            name_use_time_ms = (end_time - start_time).microseconds
+            print('\tname 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 birthYear
+            comm_sql = "SELECT imdata->>'birthYear' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            birthYear_use_time_ms = (end_time - start_time).microseconds
+            print('\tbirthYear 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 profession
+            comm_sql = "SELECT imdata->>'profession' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            profession_use_time_ms = (end_time - start_time).microseconds
+            print('\tprofession 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 rols
+            comm_sql = "SELECT imdata->>'rols' FROM tb_json WHERE imdata::json->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            rols_use_time_ms = (end_time - start_time).microseconds
+            print('\trols 用时：', (end_time - start_time).seconds, 's')
+    
+    
+            df_tmp = pd.DataFrame([[len_row_json, full_use_time_ms, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, profession_use_time_ms, rols_use_time_ms]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/json/res_by_nconst_all_col.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['full_ms'].values,
+                    label='full row')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['nconst_ms'].values,
+                    label='nconst')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['name_ms'].values,
+                    label='name')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['birthYear_ms'].values,
+                    label='birthYear')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['profession_ms'].values,
+                    label='profession')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['rols_ms'].values,
+                    label='rols')
+        plt.legend()
+        plt.title('Query by key `nconst` in tb_json')
+        plt.xlabel('Length of JSON')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/json/res_by_nconst_all_col.png')
+        # plt.show()
+    
+    
+    def jsonb_by_where_nconst_every_col_test():
+        print('>>' * 50)
+        print('[INFO] 读取序列化数据')
+        time_start = datetime.datetime.now()
+        f = open('/Users/fox/Library/CloudStorage/OneDrive-PetertheGreatSt.PetersburgPolytechnicalUniversity/СПБПУ/3 '
+                 'курс/6 семестр/СУБД/资料/DataSet/result_ALL/dump_ALL.bits', 'rb')
+        arr_nconst = pickle.load(file=f)
+        f.close()
+        arr_nconst = arr_nconst['nconst'].values
+        time_end = datetime.datetime.now()
+        print('[INFO] 读取序列化数据结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        print('>>' * 50)
+        print('[INFO] Start connect database')
+        conn = pg.connect(database="db_imdb",
+                          user="postgres",
+                          password="postgres",
+                          host="localhost",
+                          port="5432")
+        cur = conn.cursor()
+        print('[INFO] Connect database successfully')
+    
+        i = 0
+        count_row = len(arr_nconst)
+        # 用于统计的 DataFrame
+        df_counter = pd.DataFrame([[0, 0, 0, 0, 0, 0, 0]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms',
+                                           'rols_ms'])
+        # TODO 取消分割
+        # for nconst in arr_nconst[:1000]:
+        for nconst in arr_nconst[:2500]:
+            i += 1
+            print('[INFO] 正在测试第 ' + str(i) + ' 行 | ' + str(round(i / 2500 * 100, 4)) + '% | nconst = ', nconst)
+    
+            # 整个 data 行所有字段
+            comm_sql = "SELECT imdata FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            try:
+                cur.execute(comm_sql)
+            except:
+                print('[INFO] 第 ' + str(i) + ' 行取消 | nconst = ', nconst)
+                continue
+            end_time = datetime.datetime.now()
+            full_use_time_ms = (end_time - start_time).microseconds
+            row = cur.fetchall()[0]
+            len_row_jsonb = len(str(row))  # JSON(B)长度
+            print('\tfull row 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 nconst
+            comm_sql = "SELECT imdata->>'nconst' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            nconst_use_time_ms = (end_time - start_time).microseconds
+            print('\tnconst 用时：', (end_time - start_time).seconds, 's')
+    
+    
+            # 整个 data 行的字段 name
+            comm_sql = "SELECT imdata->>'name' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            name_use_time_ms = (end_time - start_time).microseconds
+            print('\tname 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 birthYear
+            comm_sql = "SELECT imdata->>'birthYear' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            birthYear_use_time_ms = (end_time - start_time).microseconds
+            print('\tbirthYear 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 profession
+            comm_sql = "SELECT imdata->>'profession' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            profession_use_time_ms = (end_time - start_time).microseconds
+            print('\tprofession 用时：', (end_time - start_time).seconds, 's')
+    
+            # 整个 data 行的字段 rols
+            comm_sql = "SELECT imdata->>'rols' FROM tb_jsonb WHERE imdata::jsonb->>'nconst' = '" + nconst + "';"
+            start_time = datetime.datetime.now()
+            cur.execute(comm_sql)
+            end_time = datetime.datetime.now()
+            rols_use_time_ms = (end_time - start_time).microseconds
+            print('\trols 用时：', (end_time - start_time).seconds, 's')
+    
+    
+            df_tmp = pd.DataFrame([[len_row_jsonb, full_use_time_ms, nconst_use_time_ms, name_use_time_ms, birthYear_use_time_ms, profession_use_time_ms, rols_use_time_ms]],
+                                  columns=['len_row', 'full_ms', 'nconst_ms', 'name_ms', 'birthYear_ms', 'profession_ms', 'rols_ms'])
+            df_counter = pd.concat([df_counter, df_tmp])
+    
+        conn.close()
+    
+        df_counter = df_counter.iloc[1:, :]
+        df_counter.sort_values(by='len_row', inplace=True)
+    
+        print('>>' * 50)
+        print('[INFO] 合并结束，使用序列化保存[最终]结果')
+        time_start = datetime.datetime.now()
+        f = open('./result/jsonb/res_by_nconst_all_col.bits', 'wb')
+        pickle.dump(obj=df_counter, file=f)
+        f.close()
+        time_end = datetime.datetime.now()
+        print('[INFO] 序列化保存结果结束，用时：', (time_end - time_start).seconds, ' 秒\n')
+    
+        # print(df_counter)
+    
+        """绘制结果"""
+        plt.figure(figsize=(20, 10), dpi=100)
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['full_ms'].values,
+                    label='full row')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['nconst_ms'].values,
+                    label='nconst')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['name_ms'].values,
+                    label='name')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['birthYear_ms'].values,
+                    label='birthYear')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['profession_ms'].values,
+                    label='profession')
+        plt.scatter(x=df_counter['len_row'].values,
+                    y=df_counter['rols_ms'].values,
+                    label='rols')
+        plt.legend()
+        plt.title('Query by key `nconst` in tb_jsonb')
+        plt.xlabel('Length of JSONB')
+        plt.ylabel('Query time (milliseconds)')
+        plt.savefig('./result/jsonb/res_by_nconst_all_col.png')
+        # plt.show()
+    
+    
+    if __name__ == '__main__':
+        # get_id_len_json_df()
+    
+        json_by_id_every_col_test()
+    
+        jsonb_by_id_every_col_test()
+    
+        # json_id_test()
+    
+        # jsonb_id_test()
+    
+        # json_where_name_test()
+    
+        # jsonb_name_test()
+    
+        # jsonb_where_nconst_test()
+    
+        # json_where_nconst_test()
+    
+        # jsonb_by_where_nconst_every_col_test()
+    
+        # json_by_where_nconst_every_col_test()
+    
+        json_update_by_id_every_col_test()
+    
+        jsonb_update_by_id_every_col_test()
+    ```
+
+    
 
 
 
@@ -1449,11 +3229,41 @@ postgres=# select * from pg_toast.pg_toast_162078;
     SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
     SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
     ROLLBACK;
+    
+    
+    
     ```
 
     
 
-2. **==[EXTENDED]== Сравнить изменение объема БД для актера с большим кол-вом ролей**
+2. **==[EXTERNAL]== Сравнить изменение объема БД для актера с малым кол-вом ролей**
+
+    Политика TOAST изменена на EXTERNAL для отключения сжатия
+
+    ```sql
+    BEGIN;
+    ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
+    SELECT * FROM tb_jsonb WHERE iddata=51989;
+    SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
+    select count(*) from pg_toast.pg_toast_162078; -- 511805
+    
+    UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
+    
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
+    SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+    select count(*) from pg_toast.pg_toast_162078; -- 511805
+    ROLLBACK;
+    ```
+
+    
+
+    
+    
+
+3. **==[EXTENDED]== Сравнить изменение объема БД для актера с большим кол-вом ролей**
 
     ```sql
     BEGIN;
@@ -1471,7 +3281,7 @@ postgres=# select * from pg_toast.pg_toast_162078;
 
     
 
-3. **==[EXTERNAL]== Сравнить изменение объема БД для актера с большим кол-вом ролей**
+4. **==[EXTERNAL]== Сравнить изменение объема БД для актера с большим кол-вом ролей**
 
     Политика TOAST изменена на EXTERNAL для отключения сжатия
 
@@ -1497,19 +3307,35 @@ postgres=# select * from pg_toast.pg_toast_162078;
 
     ```sql
     BEGIN;
-    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
+    
+    SELECT pg_table_size('tb_jsonb');  -- 1186045952 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1131 MB
     SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+    
     UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
-    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4035007 [+10] Byte
-    SELECT pg_table_size('tb_jsonb');  -- 1165639680 [+4136960] Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1112 MB [+3.9453125 MB]
+    
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 15845197 [+11810200] Byte
+    SELECT pg_table_size('tb_jsonb');  -- 1202307072 [+16261120] Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB [+16 MB]
     ROLLBACK;
     ```
 
     
 
-4. 
+    **Результат:**
+
+    <p>
+    <!--
+        如果策略允许压缩，则TOAST优先选择压缩。
+        不管是否压缩，一旦数据超过2KB左右，就会启用行外存储。
+        修改TOAST策略，不会影响现有数据的存储方式。
+    -->
+    </p>
+
+    - Если политика разрешает сжатие, TOAST предпочитает сжатие.
+    - Хранение вне ряда включается, когда объем данных превышает примерно 2 КБ, независимо от того, сжаты они или нет.
+    - Изменение политики TOAST **не** повлияет на способ хранения существующих данных.
 
 
 
