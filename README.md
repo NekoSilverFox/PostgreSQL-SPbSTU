@@ -1339,6 +1339,8 @@ $$ LANGUAGE plpython3u;
 
 ### IMDB-JSONB
 
+Были использованы все три набора данных: `actors.list.txt`, `actresses.list.txt`, `name.basics.tsv`.
+
 Скрипты, используемые для обработки данных:
 
 1. Из-за того, что одновременная обработка всех данных может занимать много памяти. Поэтому используйте скрипт Python для разделения набора данных на более мелкие части и их последующего объединения
@@ -1349,6 +1351,7 @@ $$ LANGUAGE plpython3u;
 
     ![image-20220427221234460](doc/pic/README/image-20220427221234460.png)
 
+    
 
     В этом сценарии можно объединить все фильмы одного актера в один
 
@@ -3125,6 +3128,13 @@ $$ LANGUAGE plpython3u;
 
 
 
+Сравнение времени, затрачиваемого JSON и JSONB при вставке данных в базу данных:
+
+| Типа  | Времия |
+| ----- | ------ |
+| JSON  | 49s    |
+| JSONB | 79.32s |
+
 
 
 ![output](doc/pic/README/output.png)
@@ -3185,14 +3195,17 @@ db_imdb=# select relname, relfilenode, reltoastrelid from pg_class where relname
  tb_jsonb |      162078 |        162082
 (1 row)
 
-
-
-
+------------------------------------------------------------------------------------------------------------------
 TOAST表有三个字段：
-
 chunk_id —— 用来表示特定 TOAST 值的 OID ，可以理解为具有同样 chunk_id 值的所有行组成原表（这里的 blog ）的 TOAST 字段的一行数据。
 chunk_seq —— 用来表示该行数据在整个数据中的位置。
 chunk_data —— 该Chunk实际的数据
+------------------------------------------------------------------------------------------------------------------
+Таблица TOAST имеет три поля.
+chunk_id -- используется для указания OID конкретного значения TOAST, которое можно интерпретировать как все строки с одинаковым значением chunk_id, образующие строку данных в поле TOAST исходной таблицы (в данном случае, блога).
+chunk_seq -- используется для указания позиции данных ряда в общем массиве данных.
+chunk_data -- фактические данные чанка
+------------------------------------------------------------------------------------------------------------------
 
 db_imdb=# \d+ pg_toast.pg_toast_162078;
 TOAST table "pg_toast.pg_toast_162078"
@@ -3229,9 +3242,6 @@ postgres=# select * from pg_toast.pg_toast_162078;
     SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
     SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
     ROLLBACK;
-    
-    
-    
     ```
 
     
@@ -3240,9 +3250,28 @@ postgres=# select * from pg_toast.pg_toast_162078;
 
     Политика TOAST изменена на EXTERNAL для отключения сжатия
 
+    ```BASH
+    postgres=# BEGIN;
+    postgres=# ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
+    
+    db_imdb=*# \d+ tb_jsonb;
+                                                             Table "public.tb_jsonb"
+     Column |  Type   | Collation | Nullable | Storage  | Compression | Stats target | Description
+    --------+---------+-----------+----------+----------+-------------+--------------+-------------
+     iddata | integer |           | not null | plain    |             |              |
+     imdata | jsonb   |           |          | external |             |              |
+    Indexes:
+        "ix_jsonb_iddata" btree (iddata)
+    Access method: heap
+    
+    ```
+
+    
+
     ```sql
     BEGIN;
     ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
+    
     SELECT * FROM tb_jsonb WHERE iddata=51989;
     SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
     SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
@@ -3257,8 +3286,6 @@ postgres=# select * from pg_toast.pg_toast_162078;
     select count(*) from pg_toast.pg_toast_162078; -- 511805
     ROLLBACK;
     ```
-
-    
 
     
     
@@ -3303,7 +3330,7 @@ postgres=# select * from pg_toast.pg_toast_162078;
 
     
 
-    可以看到在没有启动压缩的情况下，数据量明显增多
+    Вы можете видеть, что объем данных значительно больше без включенного сжатия.
 
     ```sql
     BEGIN;

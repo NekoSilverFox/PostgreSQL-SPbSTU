@@ -64,8 +64,79 @@ UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{birthYear}', '"2222"'::jso
 
 SELECT * FROM tb_jsonb WHERE iddata=1;
 ROLLBACK;
+
+
+select relname, relfilenode, reltoastrelid from pg_class where relname='tb_jsonb';
+select count(*) from pg_toast.pg_toast_162078;
 -------------------------------------------------------------------------------------------------------
-Richard Burton
+BEGIN;
+SELECT * FROM tb_jsonb WHERE iddata=51989;
+SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
+select count(*) from pg_toast.pg_toast_162078;
+select chunk_id,chunk_seq, chunk_data, length(chunk_data) from pg_toast.pg_toast_162078;
+
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
+
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
+SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+select count(*) from pg_toast.pg_toast_162078;
+ROLLBACK;
+-------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------------
+BEGIN;
+ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
+SELECT * FROM tb_jsonb WHERE iddata=51989;
+SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
+select count(*) from pg_toast.pg_toast_162078; -- 511805
+
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
+
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
+SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+select count(*) from pg_toast.pg_toast_162078; -- 511805
+ROLLBACK;
+-------------------------------------------------------------------------------------------------------
+
+
+BEGIN;
+SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+select count(*) from pg_toast.pg_toast_162078; -- 511805
+
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
+
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4035007 [+10] Byte
+SELECT pg_table_size('tb_jsonb');  -- 1206444032 [+4136960] Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1151 MB MB [+3.9453125 MB]
+select count(*) from pg_toast.pg_toast_162078; -- 511805
+ROLLBACK;
+
+-------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------
+
+BEGIN;
+ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
+
+SELECT pg_table_size('tb_jsonb');  -- 1186045952 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1131 MB
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+
+UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
+
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 15845197 [+11810200] Byte
+SELECT pg_table_size('tb_jsonb');  -- 1202307072 [+16261120] Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB [+16 MB]
+ROLLBACK;
+
+-------------------------------------------------------------------------------------------------------
 
 SELECT * FROM tb_jsonb WHERE tb_jsonb.imdata::jsonb->> 'name' = 'Aditya';
 
@@ -103,24 +174,6 @@ SELECT json_build_object('nconst', nconst,
 select * from json_each('{"nconst":"nm9993261"}')
 
 --------------------------------------------------------------------------------
-
-
-
-
-
-CREATE TABLE tb_data (
-	datas 						json
-);
-
-COPY tb_data FROM (SELECT jsonb_build_object('nconst', nconst,
-												 'primaryName', primaryName,
-												 'birthYear', birthYear,
-												 'deathYear', deathYear) FROM tb_name_basics);
-	
-	
-	
-	
-	
 	
 	
 	
