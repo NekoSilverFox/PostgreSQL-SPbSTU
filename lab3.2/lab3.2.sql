@@ -20,7 +20,7 @@ SELECT COUNT(*) FROM tb_json;
 
 SELECT imdata FROM tb_json WHERE imdata::json->>'name' = 'Richard Burton';
 SELECT imdata->>'name' FROM tb_json WHERE imdata::json->>'name' = 'Richard Burton';
-
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_json WHERE iddata=51989;  -- 170 Byte
 
 BEGIN;
 UPDATE tb_json SET imdata=jsonb_set(imdata::jsonb, '{name}', '"tttttttt"'::jsonb) WHERE iddata=1;
