@@ -357,44 +357,99 @@ DELETE FROM tb_arrivals
 
 <div STYLE="page-break-after: always;"></div>
 
-## Лабораторная работа No.1.4
+## Контроль целостности данных
 
 ### Постановка задачи
 
+Практическое задание посвящено контролю целостности данных, который производится с помощью механизма транзакций и триггеров. Транзакции позволяют рассматривать группу операций как единое целое, либо отрабатывают все операции, либо ни одной. Это позволяет избегать несогласованности данных. Триггеры позволяют проверять целостность данных в момент выполнения транзакций, поддерживать целостность, внося изменения, и откатывать транзакции, приводящие к потере целостности.
 
 
 
+Необходимо подготовить SQL-скрипты для проверки наличия аномалий (потерянных изменений, грязных чтений, неповторяющихся чтений, фантомов) при параллельном исполнении транзакций на различных уровнях изолированности SQL/92 (READ UNCOMMITTED, READ COMMITTED, REPEATABLE READ, SERIALIZABLE). Подготовленные скрипты должны работать с одной из таблиц, созданных в практическом задании No2.1. Для проверки наличия аномалий потребуются два параллельных сеанса, операторы в которых выполняются пошагово:
+
+- Установить в обоих сеансах уровень изоляции READ UNCOMMITTED. Выполнить сценарии проверки наличия аномалий потерянных изменений и грязных чтений.
+- Установить в обоих сеансах уровень изоляции READ COMMITTED. Выполнить сценарии проверки наличия аномалий грязных чтений и неповторяющихся чтений.
+- Установить в обоих сеансах уровень изоляции REPEATABLE READ. Выполнить сценарии проверки наличия аномалий неповторяющихся чтений и фантомов.
+- Установить в обоих сеансах уровень изоляции SERIALIZABLE. Выполнить сценарий проверки наличия фантомов.
+
+
+
+Необходимо составить скрипт для создания триггера, а также подготовить несколько запросов для проверки и демонстрации его полезных свойств:
+
+- Изменение данных для сохранения целостности.
+- Проверка транзакций и их откат в случае нарушения целостности.
+
+<div STYLE="page-break-after: always;"></div>
 
 ### Реализация
 
+#### Триггер
 
+Время отправления корабля не может быть меньше времени прибытия
+При добавлении новой записи время прибытия корабля в порт не должно быть раньше, чем последнее время отправления, зарегистрированное для корабля в системе (т.е. оно должно покинуть порт, чтобы прибыть на новый порт).
 
-## 【lab 1.4】 Контроль целостности данных
+```sql
+CREATE OR REPLACE FUNCTION fc_TimeChecker() RETURNS TRIGGER
+	AS $tr_TimeChecker$
+	BEGIN
+		CASE
+		WHEN TG_OP = 'INSERT' THEN
+			-- Отсутствие записи в системе, т.е. первая запись
+			IF ((SELECT COUNT(*) FROM tb_arrivals WHERE SeacraftID=NEW.SeacraftID) = 0)
+			THEN
+			
+				IF ((NEW.LeaveTime IS NOT NULL) AND (NEW.ArrivalTime::TIMESTAMP > NEW.LeaveTime::TIMESTAMP)) THEN
+					raise notice '[ERROR-1] The previous record is incomplete';
+					RETURN NULL;
+				END IF;
+				
+			END IF;
+		
+			-- Сравнить с предыдущей записью, если это не первая запись
+			IF (((SELECT LeaveTime::TIMESTAMP 
+							FROM tb_arrivals 
+							WHERE SeacraftID=NEW.SeacraftID
+							ORDER BY LeaveTime DESC
+							LIMIT 1) IS NULL)
+					OR
+					((SELECT LeaveTime::TIMESTAMP 
+							FROM tb_arrivals 
+							WHERE SeacraftID=NEW.SeacraftID
+							ORDER BY LeaveTime DESC
+							LIMIT 1) > NEW.ArrivalTime::TIMESTAMP)) THEN
+					raise notice '[ERROR-2] Time conflict, unable to add this record';
+					RETURN NULL;
+			END IF;
+			
+			-- 再与自身作对比
+			IF ((NEW.LeaveTime IS NOT NULL) AND (NEW.ArrivalTime::TIMESTAMP > NEW.LeaveTime::TIMESTAMP)) THEN
+				raise notice '[ERROR-3] The leave time cannot be less than the arrival time';
+				RETURN NULL;
+			END IF;
+	
 
-### Постановка задачи
+		WHEN TG_OP = 'UPDATE' THEN
+			IF ((NEW.LeaveTime IS NOT NULL) AND (NEW.ArrivalTime::TIMESTAMP > NEW.LeaveTime::TIMESTAMP)) THEN
+				raise notice '[ERROR-4] The leave time cannot be less than the arrival time';
+				RETURN NULL;
+			END IF;
+		END CASE;
+	
+ 	RETURN NEW;
+	END
+	$tr_TimeChecker$ LANGUAGE plpgsql;
 
+--
+CREATE OR REPLACE TRIGGER tr_TimeChecker
+	BEFORE INSERT OR UPDATE ON tb_arrivals
+	FOR EACH ROW EXECUTE FUNCTION fc_TimeChecker();
 
+DROP TRIGGER tr_TimeChecker ON tb_arrivals;
+```
 
+<div STYLE="page-break-after: always;"></div>
 
-
-### Реализация
-
-
-
-### Результат
-
-| **Контроль целостности данных** | грязные чтении | неповторяющиеся чтении | Потерянные изменении | фантом | **Аномалия сериализации** |
-| ------------------------------- | -------------- | ---------------------- | -------------------- | ------ | ------------------------- |
-| `serializable`                  | -              | -                      | -                    | -      | -                         |
-| `repeatable read`               | -              | -                      | -                    | -      | +                         |
-| `read commited`                 | -              | +                      | -                    | +      | +                         |
-| `read uncommited`               | -              | +                      | -                    | +      | +                         |
-
-
-
-### Аномалия сериализации
-
-We can conclude that Postgres uses a `dependencies detection` mechanism to detect potential `read phenomena` and stop them by throwing out an error.
+#### Аномалия сериализации
 
 > Dan R. K. Ports and Kevin Grittner. 2012. Serializable Snapshot Isolation in PostgreSQL. Proceedings of the VLDB Endowment vol. 5 (12) , August 2012 
 > ————————————————
@@ -409,17 +464,9 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 <img src="doc/pic/README/image-20220323225542601.png" alt="image-20220323225542601" style="zoom:50%;" />
 
+<div STYLE="page-break-after: always;"></div>
 
-
-
-
-
-
----
-
-
-
-## READ UNCOMMITTED
+##### READ UNCOMMITTED
 
 - **[-] грязные чтении & [+] неповторяющиеся чтении**
 
@@ -435,7 +482,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] неповторяющиеся чтении==<br />2000 |                                                              |
     | `COMMIT;`                                                    |                                                              |
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[-] Потерянные изменении**
 
@@ -470,7 +517,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[+] Фантом**
 
@@ -488,7 +535,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[+] Аномалия сериализации**
 
@@ -501,20 +548,12 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     | `COMMIT;`                                                    |                                                              |
     |                                                              | `COMMIT;`<br />>>>==[+] Аномалия сериализации==              |
 
-    
 
 
 
+<div STYLE="page-break-after: always;"></div>
 
-
-
----
-
-
-
-
-
-## READ COMMITTED
+##### READ COMMITTED
 
 - **[-] Грязные чтении & [+] Неповторяющиеся чтении**
 
@@ -532,7 +571,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[-] Потерянные изменении**
 
@@ -566,7 +605,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[+] Фантом**
 
@@ -584,7 +623,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[+] Аномалия сериализации**
 
@@ -599,15 +638,9 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
     
 
+<div STYLE="page-break-after: always;"></div>
 
-
-
-
----
-
-
-
-## REPEATABLE READ
+##### REPEATABLE READ
 
 - **[-] Грязные чтении & [-] Неповторяющиеся чтении**
 
@@ -623,7 +656,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Неповторяющиеся чтении==<br />1000 |                                                              |
     | `COMMIT;`                                                    |                                                              |
 
-
+<div STYLE="page-break-after: always;"></div>
 
 
 
@@ -658,7 +691,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
         | `COMMIT;`<br /><br />>>><br />ROLLBACK                       |                                                              |
         |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
 
-
+<div STYLE="page-break-after: always;"></div>
 
 
 
@@ -676,7 +709,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     | `DELETE FROM tb_ports WHERE nameport='baku2';`               |                                                              |
     | `COMMIT;`                                                    |                                                              |
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[+] Аномалия сериализации**
 
@@ -689,15 +722,10 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     | `COMMIT;`                                                    |                                                              |
     |                                                              | `COMMIT;`<br />>>>==[+] Аномалия сериализации==              |
 
-    
 
+<div STYLE="page-break-after: always;"></div>
 
-
----
-
-
-
-## SERIALIZABLE
+##### SERIALIZABLE
 
 - **[-] Грязные чтении & [-] Неповторяющиеся чтении**
 
@@ -715,7 +743,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[-] Потерянные изменении**
 
@@ -750,7 +778,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
 
 
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[-] Фантом**
 
@@ -766,7 +794,7 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     | `DELETE FROM tb_ports WHERE nameport='baku2';`               |                                                              |
     | `COMMIT;`                                                    |                                                              |
 
-
+<div STYLE="page-break-after: always;"></div>
 
 - **[-] Аномалия сериализации**
 
@@ -779,7 +807,19 @@ We can conclude that Postgres uses a `dependencies detection` mechanism to detec
     | `COMMIT;`                                                    |                                                              |
     |                                                              | `COMMIT;`<br />>>>==[-] Аномалия сериализации==<br />ERROR:  could not serialize access due to read/write dependencies among transactions<br/>DETAIL:  Reason code: Canceled on identification as a pivot, during commit attempt.<br/>HINT:  The transaction might succeed if retried. |
     
-    
+
+<div STYLE="page-break-after: always;"></div>
+
+### Результат
+
+Из полученных результатов видно, что `READ COMMITED` и `READ UNCOMMITED` дают одинаковые результаты в PostgreSQL. Именно в этом PostgreSQL существенно отличается от MySQL.
+
+| **Контроль целостности данных** | грязные чтении | неповторяющиеся чтении | Потерянные изменении | фантом | **Аномалия сериализации** |
+| ------------------------------- | -------------- | ---------------------- | -------------------- | ------ | ------------------------- |
+| `SERIALIZABLE`                  | -              | -                      | -                    | -      | -                         |
+| `REPEATABLE READ`               | -              | -                      | -                    | -      | +                         |
+| `READ COMMITED`                 | -              | +                      | -                    | +      | +                         |
+| `READ UNCOMMITED`               | -              | +                      | -                    | +      | +                         |
 
 
 
