@@ -61,7 +61,7 @@
 
 <img src="doc/pic/README/image-20220516203429227.png" alt="image-20220516203429227" style="zoom:50%;" />
 
-
+<div STYLE="page-break-after: always;"></div>
 
 ### Реализация
 
@@ -71,17 +71,168 @@ ER-диаграмма, полученная с помощью DataGrip:
 
 
 
+<div STYLE="page-break-after: always;"></div>
+
 ## Лабораторная работа No.1.2
 
 ### Постановка задачи
 
-
+Практическое задание заключается в подготовке SQL-скрипта для создания таблиц согласно схеме, полученной в предыдущем задании (с уточнением типов столбцов). Необходимо определить первичные и внешние ключи, а также декларативные ограничения целостности (возможность принимать неопределенное значение, уникальные ключи, проверочные ограничения и т. д.). Таблицы следует создавать в отдельной базе данных. Кроме того, нужно подготовить данные для заполнения созданных таблиц. Объем подготовленных данных должен составлять не менее 10 экземпляров для каждой из стержневых (неподчиняющиеся основные сущности) сущностей и 15 экземпляров для каждой из ассоциативных (подчиненные многие-ко- многим). На основе этих данных необходимо создать SQL-скрипт для вставки соответствующих строк в таблицы БД.
 
 
 
 ### Реализация
 
+Команды SQL, используемые для создания базы данных:
 
+```sql
+DROP DATABASE IF EXISTS db_Port;
+CREATE DATABASE db_Port
+WITH
+  OWNER = "fox"
+  TABLESPACE = "pg_default"
+;
+```
+
+
+
+Команды SQL для создания таблиц:
+
+```sql
+-- Корабль
+DROP TABLE IF EXISTS tb_Seacrafts;
+CREATE TABLE IF NOT EXISTS tb_Seacrafts
+(
+	IDSeacraft				SERIAL,
+	NameSeacraft			VARCHAR(255)	NOT NULL,		-- Название
+	Displacement			INTEGER 		NOT NULL,		-- Водоизменение
+	RegPortID				INTEGER			NOT NULL,		-- Порт приписки
+	TypeID					INTEGER			NOT NULL,		-- Тип
+	CaptainID				INTEGER			NOT NULL		-- Капитан
+);
+
+-- Посещение
+DROP TABLE IF EXISTS tb_Arrivals;
+CREATE TABLE IF NOT EXISTS tb_Arrivals
+(
+	IDArrival				SERIAL,
+	PortID					INTEGER			NOT NULL,		-- № причала
+	SeacraftID				INTEGER			NOT NULL,		
+	Purpose					TEXT			NULL,		 	-- Цель посещения
+	ArrivalTime				TIMESTAMP		NOT NULL,		-- Дата прибытия
+	LeaveTime				TIMESTAMP		NULL 			-- Дата убытия
+);
+
+-- Порт
+DROP TABLE IF EXISTS tb_Ports;
+CREATE TABLE IF NOT EXISTS tb_Ports
+(
+	IDPort					SERIAL,
+	Country					VARCHAR(255)	NOT NULL,		-- Страна
+	NamePort				VARCHAR(255)	NOT NULL,		-- Название
+	Price					INTEGER			NOT NULL,		-- Цена 1-ого для пребывания
+	LevelID					INTEGER			NOT NULL		-- Категория
+);
+
+-- Категория
+DROP TABLE IF EXISTS tb_PortLevels;
+CREATE TABLE IF NOT EXISTS tb_PortLevels
+(
+	IDLevel					SERIAL,
+	NameLevel				VARCHAR(255)	NOT NULL
+);
+
+-- Тип корабли
+DROP TABLE IF EXISTS tb_TypeSeacraft;
+CREATE TABLE IF NOT EXISTS tb_TypeSeacraft
+(
+	IDTypeSeacraft			SERIAL,
+	NameTypeSeacraft		VARCHAR(255)	NOT NULL
+);
+
+-- Информации Капитана
+DROP TABLE IF EXISTS tb_Captains;
+CREATE TABLE IF NOT EXISTS tb_Captains
+(
+	IDCaptain				SERIAL,
+	NameCaptain				VARCHAR(255)	NOT NULL,
+	Birthday				DATE			NOT NULL,
+	Telephone				VARCHAR(18)		NOT NULL
+);
+
+```
+
+
+
+Команды SQL для создания ограничений:
+
+```sql
+ALTER TABLE tb_TypeSeacraft ADD CONSTRAINT PK_TypeSeacraft_IDTypeSeacraft 		PRIMARY KEY(IDTypeSeacraft);
+ALTER TABLE tb_TypeSeacraft ADD CONSTRAINT UQ_TypeSeacraft_NameTypeSeacraft 	UNIQUE(NameTypeSeacraft);
+
+
+ALTER TABLE tb_Captains ADD CONSTRAINT PK_Captain_IDCaptain PRIMARY KEY(IDCaptain);
+ALTER TABLE tb_Captains ADD CONSTRAINT UQ_Captain_Telephone UNIQUE(Telephone);
+
+
+ALTER TABLE tb_PortLevels ADD CONSTRAINT PK_PortGrage_IDLevel 		PRIMARY KEY(IDLevel);
+ALTER TABLE tb_PortLevels ADD CONSTRAINT UQ_PortGrage_NameLevel		UNIQUE(NameLevel);
+
+
+ALTER TABLE tb_Ports ADD CONSTRAINT PK_Ports_IDPort		PRIMARY KEY(IDPort);
+ALTER TABLE tb_Ports ADD CONSTRAINT UQ_Ports_NamePort	UNIQUE(NamePort);
+ALTER TABLE tb_Ports ADD CONSTRAINT CK_Ports_Price		CHECK(Price > 0);
+ALTER TABLE tb_Ports ADD CONSTRAINT FK_Ports_LevelID	FOREIGN KEY(LevelID) REFERENCES tb_PortLevels(IDLevel);
+
+
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT PK_Seacrafts_IDSeacraft 				PRIMARY KEY(IDSeacraft);
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_RegPortID 					FOREIGN KEY(RegPortID) 					REFERENCES tb_Ports(IDPort);
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_TypeID 					FOREIGN KEY(TypeID)							REFERENCES tb_TypeSeacraft(IDTypeSeacraft);
+ALTER TABLE tb_Seacrafts ADD CONSTRAINT FK_Seacrafts_CaptainID 					FOREIGN KEY(CaptainID) 					REFERENCES tb_Captains(IDCaptain);
+
+
+ALTER TABLE tb_Arrivals ADD CONSTRAINT 	PK_Arrivals_IDArrival				PRIMARY KEY(IDArrival);
+ALTER TABLE tb_Arrivals ADD CONSTRAINT 	FK_Arrivals_PortID					FOREIGN KEY(PortID)			REFERENCES tb_Ports(IDPort);
+ALTER TABLE tb_Arrivals ADD CONSTRAINT 	FK_Arrivals_SeacraftID			FOREIGN KEY(SeacraftID)	REFERENCES tb_Seacrafts(IDSeacraft);
+ALTER TABLE tb_Arrivals ALTER 					ArrivalTime 								SET DEFAULT now();
+
+```
+
+
+
+Некоторые команды SQL, используемые для вставки данных в таблицу:
+
+```sql
+INSERT INTO tb_TypeSeacraft(NameTypeSeacraft) VALUES('Container ship');		-- Контейнеровоз
+INSERT INTO tb_TypeSeacraft(NameTypeSeacraft) VALUES('Bulk carrier');		-- Балкер
+INSERT INTO tb_TypeSeacraft(NameTypeSeacraft) VALUES('Oil tanker');			-- Нефтяной танкер
+INSERT INTO tb_TypeSeacraft(NameTypeSeacraft) VALUES('LNG carrier');		-- Газово́з
+
+INSERT INTO tb_PortLevels(NameLevel) VALUES('Commercial port');		-- Торговый порт
+INSERT INTO tb_PortLevels(NameLevel) VALUES('ndustrial port');		-- Промышленный порт
+INSERT INTO tb_PortLevels(NameLevel) VALUES('Fishing port');			-- Рыболовные порты
+
+INSERT INTO tb_Captains(NameCaptain, Birthday, Telephone) VALUES('Mark', '1991-04-09', '+ 8198-1005');
+INSERT INTO tb_Captains(NameCaptain, Birthday, Telephone) VALUES('Tom', '1985-06-17', '+ 4188-3461');
+INSERT INTO tb_Captains(NameCaptain, Birthday, Telephone) VALUES('Jurry', '1996-05-26', '+1 212-443-4383');
+INSERT INTO tb_Captains(NameCaptain, Birthday, Telephone) VALUES('Judy', '1989-01-21', '+44 1223-80 7237');
+INSERT INTO tb_Captains(NameCaptain, Birthday, Telephone) VALUES('Nick', '1980-01-12', '+44 7108 073718');
+
+
+INSERT INTO tb_Ports(Country, NamePort, Price, LevelID) VALUES('Russia', 'ST.PETERSBURG', 5000, 1);
+INSERT INTO tb_Ports(Country, NamePort, Price, LevelID) VALUES('Russia', 'kaliningrad', 5000, 2);
+INSERT INTO tb_Ports(Country, NamePort, Price, LevelID) VALUES('Russia', 'irkutsk', 7000, 3);
+INSERT INTO tb_Ports(Country, NamePort, Price, LevelID) VALUES('Russia', 'vostochny', 9100, 3);
+
+INSERT INTO tb_Seacrafts (NameSeacraft, Displacement, RegPortID, TypeID, Captainid) VALUES ('Henry''s LLC', 550020, 19, 3, 6);
+INSERT INTO tb_Seacrafts (NameSeacraft, Displacement, RegPortID, TypeID, Captainid) VALUES ('Marjorie Inc.', 290252, 9, 1, 13);
+INSERT INTO tb_Seacrafts (NameSeacraft, Displacement, RegPortID, TypeID, Captainid) VALUES ('Russell LLC', 216511, 25, 3, 2);
+INSERT INTO tb_Seacrafts (NameSeacraft, Displacement, RegPortID, TypeID, Captainid) VALUES ('Bradley Logistic Inc.', 640207, 3, 1, 20);
+```
+
+
+
+<div STYLE="page-break-after: always;"></div>
 
 ## Лабораторная работа No.1.3
 
