@@ -11,9 +11,10 @@
 <div align=left>
 <!-- SPbSTU 最后一行 -->
 <p align="right">
- <b>Мэн Цзянин</br></b>
- <b>3530904/90102</b>
+ <b>Выполнил студент гр.3530904/90102&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Мэн Цзянин</br></b>
+ <b>Руководитель&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Прокофьев О.В.</b>
 </p>
+
 
 
 [toc]
@@ -22,7 +23,7 @@
 
 # Лабораторная работа No.1
 
-## Лабораторная работа No.1.1
+## Проектирование схемы базы данных
 
 ### Постановка задачи
 
@@ -73,7 +74,7 @@ ER-диаграмма, полученная с помощью DataGrip:
 
 <div STYLE="page-break-after: always;"></div>
 
-## Лабораторная работа No.1.2
+## Создание и заполнение таблиц
 
 ### Постановка задачи
 
@@ -230,25 +231,133 @@ INSERT INTO tb_Seacrafts (NameSeacraft, Displacement, RegPortID, TypeID, Captain
 INSERT INTO tb_Seacrafts (NameSeacraft, Displacement, RegPortID, TypeID, Captainid) VALUES ('Bradley Logistic Inc.', 640207, 3, 1, 20);
 ```
 
-
-
 <div STYLE="page-break-after: always;"></div>
 
-## Лабораторная работа No.1.3
+## Операторы манипулирования
 
 ### Постановка задачи
 
+Практическое задание посвящено манипулированию данными с помощью операторов SQL. В ходе выполнения четвертого практического задания необходимо:
 
+- Нужно подготовить 3-4 выборки, которые имеют осмысленное значение для предметной области, и также составить для них SQL-скрипты.
+- Сформулировать 3-4 запроса на изменение и удаление из базы данных. Запросы должны быть сформулированы в терминах предметной области. Составить SQL-скрипты для выполнения этих запросов.
 
 
 
 ### Реализация
 
+Вывести информацию о судах, прибывающих в порт `ST.PETERSBURG`, отсортированную в порядке возрастания времени прибытия
 
+```sql
+WITH RegPort AS (
+	SELECT idport AS IDRegPort, nameport AS NameRegPort FROM tb_ports
+)
+SELECT arrivaltime, nameseacraft, nametypeseacraft, displacement, NameRegPort, namecaptain
+	FROM tb_ports
+		INNER JOIN tb_arrivals
+			ON tb_arrivals.PortID=tb_ports.IDPort
+		INNER JOIN tb_seacrafts
+			ON tb_seacrafts.idseacraft=tb_arrivals.seacraftid
+		INNER JOIN tb_typeseacraft
+			ON tb_typeseacraft.idtypeseacraft=tb_seacrafts.typeid
+		INNER JOIN RegPort
+			ON RegPort.IDRegPort=tb_seacrafts.RegPortID
+		INNER JOIN tb_captains
+			ON tb_captains.idcaptain=tb_seacrafts.captainid
+	WHERE tb_ports.nameport='ST.PETERSBURG'
+	ORDER BY ArrivalTime ASC
+```
+
+
+
+Корабль, зарегистрированные в Китае и прибывающие в Азербайджан более 2 раз
+
+```sql
+SELECT IDSeacraft, NameSeacraft, COUNT(IDSeacraft) AS Times
+	FROM tb_arrivals
+		INNER JOIN tb_seacrafts 
+			ON tb_seacrafts.IDSeacraft=tb_arrivals.SeacraftID
+	WHERE tb_arrivals.PortID 			IN (SELECT IDPort FROM tb_ports WHERE Country='Azerbaijan')
+		AND tb_arrivals.SeacraftID 	IN (SELECT IDSeacraft AS SeacraftIDWithCountry FROM tb_seacrafts 
+																			WHERE RegPortID IN (SELECT IDPort FROM tb_ports WHERE Country='China'))
+	GROUP BY IDSeacraft, NameSeacraft
+	HAVING COUNT(SeacraftID) > 2
+	ORDER BY IDSeacraft
+```
+
+
+
+Капитаны со второй буквой своего имени `e` и количество раз, когда они прибывали к каждому пирсу. и выводить только записи с 10-й по 30-ю
+
+```sql
+WITH tb_NameCaptainWithE AS (
+	SELECT * FROM tb_captains WHERE NameCaptain LIKE '_e%'
+)
+SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.NamePort, COUNT(tb_ports.IDPort)
+	FROM tb_seacrafts
+		INNER JOIN tb_arrivals
+			ON tb_arrivals.SeacraftID=tb_seacrafts.IDSeacraft
+		INNER JOIN tb_NameCaptainWithE
+			ON tb_NameCaptainWithE.IDCaptain=tb_seacrafts.CaptainID
+		INNER JOIN tb_ports
+			ON tb_ports.IDPort=tb_arrivals.PortID
+	GROUP BY tb_ports.Country, tb_ports.IDPort, tb_ports.NamePort, tb_NameCaptainWithE.NameCaptain
+	ORDER BY tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.IDPort
+	LIMIT 20 OFFSET 9
+```
+
+
+
+Сравнение тарифов каждого порта со средним значением тарифов по стране
+
+```sql
+SELECT IDPort, Country, NamePort, Price, AVG(Price) OVER (PARTITION BY Country)
+	FROM tb_ports
+	ORDER BY Country, NamePort
+```
+
+
+
+
+
+увеличить водоизмещение всех зарегистрированных в Баку контейнеровозов водоизмещением менее 30 000 тонн на 1 000 тонн
+
+```sql
+UPDATE tb_seacrafts
+	SET Displacement = Displacement + 1000
+	WHERE IDSeacraft IN (
+				SELECT IDSeacraft
+				FROM tb_seacrafts
+				WHERE RegPortID=(SELECT IDPort FROM tb_ports WHERE NamePort='baku')
+				AND TypeID=(SELECT IDTypeSeacraft FROM tb_typeseacraft WHERE NameTypeSeacraft='Container ship'))
+```
+
+
+
+Отложить на один месяц отплытие всех корабли, прибывающих в Баку после 2020 года
+
+```sql
+UPDATE tb_arrivals
+	SET LeaveTime = LeaveTime::TIMESTAMP + '1 month'
+	WHERE IDArrival IN (
+				SELECT IDArrival FROM tb_arrivals
+				WHERE PortID=(SELECT IDPort FROM tb_ports WHERE NamePort='baku')
+				AND ArrivalTime > '2020-01-01'::TIMESTAMP)
+```
+
+
+
+Удалить записи, которые находились в Баку более 7 месяцев (только первая строка)
+
+```SQL
+DELETE FROM tb_arrivals 
+	WHERE IDArrival IN (
+				SELECT IDArrival FROM tb_arrivals WHERE (LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP) > '7 month' LIMIT 1)
+```
+
+<div STYLE="page-break-after: always;"></div>
 
 ## Лабораторная работа No.1.4
-
-
 
 ### Постановка задачи
 
