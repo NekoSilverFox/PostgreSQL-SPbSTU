@@ -1,27 +1,40 @@
  <p align="center">
   <img width="250px" src="https://github.com/NekoSilverFox/NekoSilverfox/blob/master/icons/logo_building_spbstu.png?raw=true" align="center" alt="ogo_building_spbstu" />
   </br>
-  </br>
   <b><b>Санкт-Петербургский государственный политехнический университет</b></br></b>
   <b>Институт компьютерных наук и технологий</b>
   </br></br>
 </p>
 
 
+</br></br></br></br></br></br></br>
+
 <div align=left>
 <!-- SPbSTU 最后一行 -->
 <p align="right">
- <b>Выполнил студент гр.3530904/90102&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Мэн Цзянин</br></b>
+ <b>Выполнил студент гр.3530904/90102&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Мэн Цзянин</br></b>
  <b>Руководитель&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Прокофьев О.В.</b>
 </p>
+</br></br></br></br></br></br></br>
 
+<p align="center">
+Санкт-Петербург</br>
+2022
+
+</p>
+
+<div STYLE="page-break-after: always;"></div>
 
 
 [toc]
 
-
-
 # Лабораторная работа No.1
+
+Одним из основных применений РСУБД является хранение и обработка данных пользовательских приложений. Специфика такого использования заключается в том, что данные постоянно добавляются/изменяются/удаляются. Схема данных достаточно устойчива и редко изменяется. В этом случае непосредственно с СУБД взаимодействует не человек, а программа, что уменьшает требования к способу взаимодействия с базой данных. Однако разработчику необходимо уметь проектировать гибкую и эффективную схему данных, использовать ограничения целостности, манипулировать данными и понимать механизмы поддержки согласованности базы данных, такие как транзакции и триггеры.
+
+
+
+Блок практических заданий 1.1-1.4 призван сформировать у студента понимание особенностей хранения, умение настраивать и поддерживать данные.
 
 ## Проектирование схемы базы данных
 
@@ -52,7 +65,7 @@
 
 Желательно придерживаться какой-либо системы в именовании таблиц и столбцов.
 
-
+<div STYLE="page-break-after: always;"></div>
 
 **Вариант №20**
 
@@ -160,7 +173,6 @@ CREATE TABLE IF NOT EXISTS tb_Captains
 	Birthday				DATE			NOT NULL,
 	Telephone				VARCHAR(18)		NOT NULL
 );
-
 ```
 
 
@@ -196,7 +208,6 @@ ALTER TABLE tb_Arrivals ADD CONSTRAINT 	PK_Arrivals_IDArrival				PRIMARY KEY(IDA
 ALTER TABLE tb_Arrivals ADD CONSTRAINT 	FK_Arrivals_PortID					FOREIGN KEY(PortID)			REFERENCES tb_Ports(IDPort);
 ALTER TABLE tb_Arrivals ADD CONSTRAINT 	FK_Arrivals_SeacraftID			FOREIGN KEY(SeacraftID)	REFERENCES tb_Seacrafts(IDSeacraft);
 ALTER TABLE tb_Arrivals ALTER 					ArrivalTime 								SET DEFAULT now();
-
 ```
 
 
@@ -246,6 +257,8 @@ INSERT INTO tb_Seacrafts (NameSeacraft, Displacement, RegPortID, TypeID, Captain
 
 ### Реализация
 
+#### SELECT
+
 Вывести информацию о судах, прибывающих в порт `ST.PETERSBURG`, отсортированную в порядке возрастания времени прибытия
 
 ```sql
@@ -270,6 +283,12 @@ SELECT arrivaltime, nameseacraft, nametypeseacraft, displacement, NameRegPort, n
 
 
 
+Вывод:
+
+![image-20220517135731393](doc/pic/README/image-20220517135731393.png)
+
+<div STYLE="page-break-after: always;"></div>
+
 Корабль, зарегистрированные в Китае и прибывающие в Азербайджан более 2 раз
 
 ```sql
@@ -286,6 +305,12 @@ SELECT IDSeacraft, NameSeacraft, COUNT(IDSeacraft) AS Times
 ```
 
 
+
+Вывод:
+
+<img src="doc/pic/README/image-20220517140003185.png" alt="image-20220517140003185" style="zoom:50%;" />
+
+<div STYLE="page-break-after: always;"></div>
 
 Капитаны со второй буквой своего имени `e` и количество раз, когда они прибывали к каждому пирсу. и выводить только записи с 10-й по 30-ю
 
@@ -308,6 +333,12 @@ SELECT tb_NameCaptainWithE.NameCaptain, tb_ports.Country, tb_ports.NamePort, COU
 
 
 
+Вывод:
+
+![image-20220517140056143](doc/pic/README/image-20220517140056143.png)
+
+
+
 Сравнение тарифов каждого порта со средним значением тарифов по стране
 
 ```sql
@@ -318,9 +349,17 @@ SELECT IDPort, Country, NamePort, Price, AVG(Price) OVER (PARTITION BY Country)
 
 
 
+Вывод:
+
+![image-20220517140147975](doc/pic/README/image-20220517140147975.png)
 
 
-увеличить водоизмещение всех зарегистрированных в Баку контейнеровозов водоизмещением менее 30 000 тонн на 1 000 тонн
+
+<div STYLE="page-break-after: always;"></div>
+
+#### UPDATE
+
+Увеличить водоизмещение всех зарегистрированных в Баку контейнеровозов водоизмещением менее 30 000 тонн на 1 000 тонн
 
 ```sql
 UPDATE tb_seacrafts
@@ -334,6 +373,19 @@ UPDATE tb_seacrafts
 
 
 
+Вывод:
+
+- Перед выполнением команды SQL-UPDATE
+
+    ![image-20220517140912130](doc/pic/README/image-20220517140912130.png)
+    
+
+- После выполнения команды SQL-UPDATE
+
+    ![image-20220517140937814](doc/pic/README/image-20220517140937814.png)
+
+<div STYLE="page-break-after: always;"></div>
+
 Отложить на один месяц отплытие всех корабли, прибывающих в Баку после 2020 года
 
 ```sql
@@ -345,7 +397,17 @@ UPDATE tb_arrivals
 				AND ArrivalTime > '2020-01-01'::TIMESTAMP)
 ```
 
+- Перед выполнением команды SQL-UPDATE
 
+    ![image-20220517141259342](doc/pic/README/image-20220517141259342.png)
+    
+
+- После выполнения команды SQL-UPDATE
+    ![image-20220517141322941](doc/pic/README/image-20220517141322941.png)
+
+<div STYLE="page-break-after: always;"></div>
+
+#### DELETE
 
 Удалить записи, которые находились в Баку более 7 месяцев (только первая строка)
 
@@ -354,6 +416,19 @@ DELETE FROM tb_arrivals
 	WHERE IDArrival IN (
 				SELECT IDArrival FROM tb_arrivals WHERE (LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP) > '7 month' LIMIT 1)
 ```
+
+
+
+Вывод:
+
+- Перед выполнением команды SQL-DELETE
+
+    ![image-20220517141608105](doc/pic/README/image-20220517141608105.png)
+    
+
+- После выполнения команды SQL-DELETE
+
+    ![image-20220517141636204](doc/pic/README/image-20220517141636204.png)
 
 <div STYLE="page-break-after: always;"></div>
 
@@ -421,7 +496,7 @@ CREATE OR REPLACE FUNCTION fc_TimeChecker() RETURNS TRIGGER
 					RETURN NULL;
 			END IF;
 			
-			-- 再与自身作对比
+			-- Сравните это с собой
 			IF ((NEW.LeaveTime IS NOT NULL) AND (NEW.ArrivalTime::TIMESTAMP > NEW.LeaveTime::TIMESTAMP)) THEN
 				raise notice '[ERROR-3] The leave time cannot be less than the arrival time';
 				RETURN NULL;
@@ -446,6 +521,52 @@ CREATE OR REPLACE TRIGGER tr_TimeChecker
 
 DROP TRIGGER tr_TimeChecker ON tb_arrivals;
 ```
+
+
+
+Вывод:
+
+- Не Использования триггера
+
+    - Если триггер не используются, можно вставить данные времени исключения *(Корабль отправляется позже, чем прибывает)*
+
+        ![image-20220517143811472](doc/pic/README/image-20220517143811472.png)
+        
+
+    - Неверная команда UPDATE также может быть успешно выполнена
+
+        ![image-20220517144523164](doc/pic/README/image-20220517144523164.png)
+        
+
+- Использование триггеров
+
+    - Если используется триггер, то данные с исключением времени не будут вставлены *(Корабль отправляется позже, чем прибывает)*
+
+        ![image-20220517144742231](doc/pic/README/image-20220517144742231.png)
+
+        и будет выведено соответствующее сообщение об ошибке
+
+        ![image-20220517144812605](doc/pic/README/image-20220517144812605-2788094.png)
+
+        
+
+    - Данные с правильным временем могут быть вставлены
+
+        ![image-20220517145201930](doc/pic/README/image-20220517145201930.png)
+        
+
+    - Неверная команда UPDATE также не может быть успешно выполнена
+
+        ![image-20220517145251054](doc/pic/README/image-20220517145251054.png)
+        и будет выведено соответствующее сообщение об ошибке
+
+        ![image-20220517145342942](doc/pic/README/image-20220517145342942.png)
+
+        
+
+    - И действительная команда UPDATE может быть успешно выполнена
+
+        ![image-20220517145513480](doc/pic/README/image-20220517145513480.png)
 
 <div STYLE="page-break-after: always;"></div>
 
@@ -500,7 +621,9 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
       | `ROLLBACK;`                                                  |                                                              |
       |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
   
-      **[-] Потерянные изменении | Second lost update**
+      <div STYLE="page-break-after: always;"></div>
+  
+  - **[-] Потерянные изменении | Second lost update**
   
       | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
       | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -589,8 +712,12 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
         | `ROLLBACK;`                                                  |                                                              |
         |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
 
-        **[-] Потерянные изменении | Second lost update**
+        <div STYLE="page-break-after: always;"></div>
 
+    
+    
+    - **[-] Потерянные изменении | Second lost update**
+    
         | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
         | ------------------------------------------------------------ | ------------------------------------------------------------ |
         | `BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*read committed* |                                                              |
@@ -676,8 +803,10 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
         | `ROLLBACK;`                                                  |                                                              |
         |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
 
-        **[-] Потерянные изменении | Second lost update**
+        <div STYLE="page-break-after: always;"></div>
 
+    - **[-] Потерянные изменении | Second lost update**
+    
         | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
         | ------------------------------------------------------------ | ------------------------------------------------------------ |
         | `BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*repeatable read* |                                                              |
@@ -761,8 +890,10 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
         | `ROLLBACK;`                                                  |                                                              |
         |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
 
-        **[-] Потерянные изменении | Second lost update**
+        <div STYLE="page-break-after: always;"></div>
 
+    - **[-] Потерянные изменении | Second lost update**
+    
         | **Параллельный сеанс** 1                                     | **Параллельный сеанс** 2                                     |
         | ------------------------------------------------------------ | ------------------------------------------------------------ |
         | `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`<br />`SHOW TRANSACTION_ISOLATION;`<br /><br />>>><br />*serializable* |                                                              |
@@ -772,11 +903,9 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
         |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>><br />900 |
         | `UPDATE tb_ports SET price=price+100 WHERE nameport='baku';`<br /><br />>>> <br />БЛОКИРУЕТСЯ |                                                              |
         |                                                              | `COMMIT;`                                                    |
-        | >>><br />ERROR:  could not serialize access due to concurrent update |                                                              |
+        | >>><br />ERROR: could not serialize access due to concurrent update |                                                              |
         | `COMMIT;`<br /><br />>>><br />ROLLBACK                       |                                                              |
         |                                                              | `SELECT price FROM tb_ports WHERE nameport='baku';`<br /><br />>>>==[-] Потерянные изменении \| Second lost update==<br />900 |
-
-
 
 <div STYLE="page-break-after: always;"></div>
 
@@ -825,13 +954,32 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
 
 
 
----
-
-# lab 2
 
 
 
-## 【lab】2.1
+
+# Лабораторная работа No.2
+
+Разработчику базы данных необходимо уметь проектировать высокопроизводительную схему данных ориентированную на большие объемы и регулярно появляющиеся и устаревающие данные, использовать механизмы секционирования и построения индексов, анализировать планы запросов и оптимизировать их, упрощать интерфейс базы данных с помощью процедур и представлений, ограничивать доступ с помощью ролей и прав.
+
+
+
+Блок практических заданий 2.1-2.3 призван сформировать у студента понимание особенностей настроек прав доступа к базе данных и умение их настраивать и поддерживать, научиться работать с хранимыми процедурами.
+
+## Управление доступом
+
+Целью практического задания является освоение работы с представлениями и другими способами управления доступом. При выполнении задания необходимо:
+
+- Создать пользователя test и выдать ему доступ к базе данных.
+- Составить и выполнить скрипты присвоения новому пользователю прав доступа к таблицам, созданным в практическом задании No2.1. При этом права доступа к различным таблицам должны быть различными, а именно:
+    - По крайней мере, для одной таблицы новому пользователю присваиваются права SELECT, INSERT, UPDATE в полном объеме.
+    - По крайней мере, для одной таблицы новому пользователю присваиваются права SELECT и UPDATE только избранных столбцов.
+    - По крайней мере, для одной таблицы новому пользователю присваивается только право SELECT.
+- Составить SQL-скрипты для создания нескольких представлений, которые позволяли бы упростить манипуляции с данными или позволяли бы ограничить доступ к данным, предоставляя только необходимую информацию.
+- Присвоить новому пользователю право доступа (SELECT) к одному из представлений
+- Создать стандартную роль уровня базы данных, присвоить ей право доступа (UPDATE на некоторые столбцы) к одному из представлений, назначить новому пользователю созданную роль.
+- Выполнить от имени нового пользователя некоторые выборки из таблиц и представлений. Убедиться в правильности контроля прав доступа.
+- Выполнить от имени нового пользователя операторы изменения таблиц с ограниченными правами доступа. Убедиться в правильности контроля прав доступа.
 
 1. **Создать пользователя test** 
 
