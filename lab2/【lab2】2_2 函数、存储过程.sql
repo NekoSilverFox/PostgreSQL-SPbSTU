@@ -30,8 +30,8 @@ CREATE OR REPLACE FUNCTION fc_PortTimeChecker(INTEGER) RETURNS TEXT
 	END;
 	$$;
 
-SELECT fc_PortTimeChecker(1)
-SELECT fc_PortTimeChecker(2)
+SELECT fc_PortTimeChecker(1);
+SELECT fc_PortTimeChecker(2);
 
 -- 【LOOP】评估船舶滞留码头时间的等级
 -- 【LOOP】Оценка уровня времени, в течение которого корабль простаивает в порте

@@ -379,7 +379,6 @@ UPDATE tb_seacrafts
 
     ![image-20220517140912130](doc/pic/README/image-20220517140912130.png)
     
-
 - После выполнения команды SQL-UPDATE
 
     ![image-20220517140937814](doc/pic/README/image-20220517140937814.png)
@@ -401,7 +400,6 @@ UPDATE tb_arrivals
 
     ![image-20220517141259342](doc/pic/README/image-20220517141259342.png)
     
-
 - После выполнения команды SQL-UPDATE
     ![image-20220517141322941](doc/pic/README/image-20220517141322941.png)
 
@@ -425,7 +423,6 @@ DELETE FROM tb_arrivals
 
     ![image-20220517141608105](doc/pic/README/image-20220517141608105.png)
     
-
 - После выполнения команды SQL-DELETE
 
     ![image-20220517141636204](doc/pic/README/image-20220517141636204.png)
@@ -532,12 +529,11 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
 
         ![image-20220517143811472](doc/pic/README/image-20220517143811472.png)
         
-
     - Неверная команда UPDATE также может быть успешно выполнена
-
+    
         ![image-20220517144523164](doc/pic/README/image-20220517144523164.png)
         
-
+    
 - Использование триггеров
 
     - Если используется триггер, то данные с исключением времени не будут вставлены *(Корабль отправляется позже, чем прибывает)*
@@ -554,19 +550,18 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
 
         ![image-20220517145201930](doc/pic/README/image-20220517145201930.png)
         
-
-    - Неверная команда UPDATE также не может быть успешно выполнена
-
-        ![image-20220517145251054](doc/pic/README/image-20220517145251054.png)
+- Неверная команда UPDATE также не может быть успешно выполнена
+    
+    ![image-20220517145251054](doc/pic/README/image-20220517145251054.png)
         и будет выведено соответствующее сообщение об ошибке
-
-        ![image-20220517145342942](doc/pic/README/image-20220517145342942.png)
-
-        
-
-    - И действительная команда UPDATE может быть успешно выполнена
-
-        ![image-20220517145513480](doc/pic/README/image-20220517145513480.png)
+    
+    ![image-20220517145342942](doc/pic/README/image-20220517145342942.png)
+    
+    
+    
+- И действительная команда UPDATE может быть успешно выполнена
+    
+    ![image-20220517145513480](doc/pic/README/image-20220517145513480.png)
 
 <div STYLE="page-break-after: always;"></div>
 
@@ -968,6 +963,8 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
 
 ## Управление доступом
 
+### Постановка задачи
+
 Целью практического задания является освоение работы с представлениями и другими способами управления доступом. При выполнении задания необходимо:
 
 - Создать пользователя test и выдать ему доступ к базе данных.
@@ -981,6 +978,10 @@ DROP TRIGGER tr_TimeChecker ON tb_arrivals;
 - Выполнить от имени нового пользователя некоторые выборки из таблиц и представлений. Убедиться в правильности контроля прав доступа.
 - Выполнить от имени нового пользователя операторы изменения таблиц с ограниченными правами доступа. Убедиться в правильности контроля прав доступа.
 
+<div STYLE="page-break-after: always;"></div>
+
+### Реализация
+
 1. **Создать пользователя test** 
 
 ```sql
@@ -989,7 +990,9 @@ CREATE ROLE test;
 ALTER ROLE test PASSWORD '123';
 ```
 
-<img src="doc/pic/README/image-20220324211259582.png" alt="image-20220324211259582" style="zoom: 50%;" />
+Вход в систему не удался, поскольку новый пользователь не имеет привилегий для входа в систему
+
+<img src="doc/pic/README/image-20220324211259582.png" alt="image-20220324211259582" style="zoom: 33%;" />
 
 
 
@@ -999,7 +1002,7 @@ ALTER ROLE test PASSWORD '123';
     ALTER ROLE test LOGIN;
     ```
 
-    <img src="doc/pic/README/image-20220324211432812.png" alt="image-20220324211432812" style="zoom: 50%;" />
+    <img src="doc/pic/README/image-20220324211432812.png" alt="image-20220324211432812" style="zoom: 33%;" />
 
     
 
@@ -1011,25 +1014,29 @@ ALTER ROLE test PASSWORD '123';
         GRANT SELECT, INSERT, UPDATE ON tb_portlevels TO test;
         ```
 
-        - ![image-20220324214127593](doc/pic/README/image-20220324214127593.png)
+        
+
+        Используйте соответствующую команду SQL для проверки пользователя в соответствии с предоставленными ему привилегиями
+
+        Вывод:
+
+        - SELECT
+            ![image-20220324214127593](doc/pic/README/image-20220324214127593.png)
 
         
 
-        - ![image-20220324215214166](doc/pic/README/image-20220324215214166.png)
+        - INSERT
+            ![image-20220324215214166](doc/pic/README/image-20220324215214166.png)
 
-            
+              
 
-        - ![image-20220324214054583](doc/pic/README/image-20220324214054583.png)
+        - UPDATE
+            ![image-20220324214054583](doc/pic/README/image-20220324214054583.png)
 
-            
+              
 
-        - ![image-20220324215341921](doc/pic/README/image-20220324215341921-8148027.png)
-
-        
-
-        
-
-        
+        - DELETE
+            ![image-20220324215341921](doc/pic/README/image-20220324215341921-8148027.png)
 
         
 
@@ -1041,10 +1048,18 @@ ALTER ROLE test PASSWORD '123';
         GRANT SELECT, UPDATE ON tb_typeseacraft TO test;
         ```
 
-        - ![image-20220324215447762](doc/pic/README/image-20220324215447762.png)
-        - ![image-20220324215736741](doc/pic/README/image-20220324215736741.png)
-        - ![image-20220324215830246](doc/pic/README/image-20220324215830246.png)
-        - ![image-20220324215853702](doc/pic/README/image-20220324215853702.png)
+        Используйте соответствующую команду SQL для проверки пользователя в соответствии с предоставленными ему привилегиями
+
+        Вывод:
+
+        - SELECT
+            ![image-20220324215447762](doc/pic/README/image-20220324215447762.png)
+        - INSERT
+            ![image-20220324215736741](doc/pic/README/image-20220324215736741.png)
+        - UPDATE
+            ![image-20220324215830246](doc/pic/README/image-20220324215830246.png)
+        - DELETE
+            ![image-20220324215853702](doc/pic/README/image-20220324215853702.png)
 
         
 
@@ -1053,6 +1068,12 @@ ALTER ROLE test PASSWORD '123';
         ```sql
         GRANT SELECT ON tb_ports TO test;
         ```
+
+        Используйте соответствующую команду SQL для проверки пользователя в соответствии с предоставленными ему привилегиями
+
+        Вывод:
+
+        ![image-20220517155042562](doc/pic/README/image-20220517155042562.png)
 
         
 
@@ -1072,9 +1093,21 @@ ALTER ROLE test PASSWORD '123';
         GRANT SELECT ON VW_Ports TO test;
         ```
 
-        <img src="doc/pic/README/image-20220324232945852.png" alt="image-20220324232945852" style="zoom:50%;" />
+        
 
+        Вывод:
+        
+        Когда у пользователя есть разрешение, представление доступно:
+        
+        <img src="doc/pic/README/image-20220324232945852.png" alt="image-20220324232945852" style="zoom:50%;" />
+        
+        
+        
+        Если у пользователя нет разрешения, представление недоступно:
+        
         <img src="doc/pic/README/image-20220324233025589.png" alt="image-20220324233025589" style="zoom:50%;" />
+        
+        
         
     - Создать стандартную роль уровня базы данных, присвоить ей право доступа (`UPDATE` на некоторые столбцы) к одному из представлений, назначить новому пользователю созданную роль.
 
@@ -1084,10 +1117,14 @@ ALTER ROLE test PASSWORD '123';
         GRANT update_vw_test TO test;
         ```
 
+        
+
+        Вывод:
+
         <img src="doc/pic/README/image-20220324235621158.png" alt="image-20220324235621158" style="zoom:50%;" />
-
+        
         <img src="doc/pic/README/image-20220325000112121.png" alt="image-20220325000112121" style="zoom:50%;" />
-
+        
         
 
 4. Удалите все разрешения у пользователя и удалите пользователя
@@ -1096,6 +1133,66 @@ ALTER ROLE test PASSWORD '123';
     REVOKE ALL ON DATABASE db_port from test;
     DROP ROLE test;
     ```
+
+
+
+<div STYLE="page-break-after: always;"></div>
+
+## Функции и язык PL/pgSQL
+
+### Постановка задачи
+
+Практическое задание посвящено упрощению работы с помощью создания и использования функций. При выполнении задания необходимо:
+
+- Составить SQL-скрипты для создания нескольких (2-3) функций, упрощающих работу с данными.
+- Продемонстрировать полученные знания о возможностях языка PL/pgSQL. В скриптах должны использоваться:
+    - Циклы.
+    - Ветвления.
+    - Переменные.
+    - Курсоры.
+    - Исключения.
+- Обосновать преимущества механизма функций перед механизмом представлений.
+
+
+
+### Реализация
+
+Оценка уровня времени, в течение которого корабль простаивает в порте
+
+```sql
+CREATE OR REPLACE FUNCTION fc_PortTimeChecker(INTEGER) RETURNS TEXT 
+	LANGUAGE plpgsql
+	AS $$
+	DECLARE 
+		t_ArrivalTime TIMESTAMP := (SELECT ArrivalTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
+		t_LeaveTime TIMESTAMP := (SELECT LeaveTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
+		Days INTEGER;
+		msg TEXT;
+	BEGIN
+		IF (t_LeaveTime IS NULL) THEN 
+			RAISE EXCEPTION '[ERROR] LeaveTime can not be NULL';
+		END IF;
+		
+		Days := extract(day from t_LeaveTime - t_ArrivalTime);
+		CASE
+			WHEN Days BETWEEN 0 AND 30 THEN
+				msg := 'Short';
+			WHEN Days BETWEEN 30 AND 100 THEN
+				msg := 'Normal';
+			WHEN Days BETWEEN 100 AND 150 THEN
+				msg := 'Long';
+			ELSE
+				msg := 'Very long';
+		END CASE;
+		
+		RETURN msg;
+	END;
+	$$;
+```
+
+
+
+Вывод:
 
 
 
