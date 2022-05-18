@@ -72,7 +72,7 @@ CREATE OR REPLACE FUNCTION fc_AllPortTimeChecker() RETURNS TEXT
 	END;
 	$$;
 
-SELECT fc_AllPortTimeChecker()
+SELECT fc_AllPortTimeChecker();
 
 
 -- 获取船舶的自定义到达编号
@@ -88,11 +88,11 @@ CREATE OR REPLACE FUNCTION get_arrival_num(INTEGER) RETURNS VARCHAR
 	LANGUAGE SQL
 	RETURNS NULL ON NULL INPUT;
 	
-SELECT IDArrival, get_arrival_num(IDArrival) FROM tb_arrivals 
+SELECT IDArrival, get_arrival_num(IDArrival) FROM tb_arrivals;
 
 
--- 根据指定港口的服务总时长
--- Общее количество часов работы в соответствии с назначенным портом
+-- 获取根据指定港口的所有船舶滞留总时长
+-- Получить общую продолжительность пребывания всех судов на основе назначенного порта
 CREATE OR REPLACE FUNCTION fc_IncomePort(VARCHAR) RETURNS INTEGER
 	AS
 	'

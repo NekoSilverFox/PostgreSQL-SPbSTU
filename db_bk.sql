@@ -16,6 +16,190 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: fc_allporttimechecker(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.fc_allporttimechecker() RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+	DECLARE 
+ 		t_ArrivalTime TIMESTAMP;
+ 		t_LeaveTime TIMESTAMP;
+		StartNum INTEGER := (SELECT min(idarrival) FROM tb_arrivals);
+		StopNum INTEGER := (SELECT max(idarrival) FROM tb_arrivals);
+		Days INTEGER;
+		msg TEXT;
+	BEGIN
+		FOR counter IN StartNum .. StopNum LOOP
+				IF (t_LeaveTime IS NULL) THEN 
+					RAISE NOTICE 'IDArrival: % con not handle', counter;
+				END IF;		
+						
+				t_ArrivalTime := (SELECT ArrivalTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=counter);
+				t_LeaveTime := (SELECT LeaveTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=counter);
+				Days := extract(day from t_LeaveTime - t_ArrivalTime);
+				CASE
+					WHEN Days BETWEEN 0 AND 30 THEN
+						msg := 'Short';
+					WHEN Days BETWEEN 30 AND 100 THEN
+						msg := 'Normal';
+					WHEN Days BETWEEN 100 AND 150 THEN
+						msg := 'Long';
+					ELSE
+						msg := 'Very long';
+				END CASE;
+		
+			RAISE NOTICE 'IDArrival: %, Level: %', counter, msg;
+		END LOOP;
+	
+		RETURN msg;
+	END;
+	$$;
+
+
+ALTER FUNCTION public.fc_allporttimechecker() OWNER TO postgres;
+
+--
+-- Name: fc_incomeport(character varying); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.fc_incomeport(character varying) RETURNS integer
+    LANGUAGE sql STRICT
+    AS $_$
+			SELECT SUM(hours) AS hours FROM(
+				SELECT EXTRACT(
+					DAY FROM (
+							SELECT SUM(LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP)
+							FROM tb_arrivals 
+							WHERE PortID=(SELECT IDPort FROM tb_ports WHERE NamePort=$1)
+						)
+				) * 24 AS hours
+				UNION ALL
+				SELECT EXTRACT(
+					HOUR FROM (
+							SELECT SUM(LeaveTime::TIMESTAMP - ArrivalTime::TIMESTAMP)
+							FROM tb_arrivals 
+							WHERE PortID=(SELECT IDPort FROM tb_ports WHERE NamePort=$1)
+						)
+				) AS hours
+		) AS hour_row
+	$_$;
+
+
+ALTER FUNCTION public.fc_incomeport(character varying) OWNER TO postgres;
+
+--
+-- Name: fc_porttimechecker(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.fc_porttimechecker(integer) RETURNS text
+    LANGUAGE plpgsql
+    AS $_$
+	DECLARE 
+		t_ArrivalTime TIMESTAMP := (SELECT ArrivalTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
+		t_LeaveTime TIMESTAMP := (SELECT LeaveTime::TIMESTAMP FROM tb_arrivals WHERE IDArrival=$1);
+		Days INTEGER;
+		msg TEXT;
+	BEGIN
+		IF (t_LeaveTime IS NULL) THEN 
+			RAISE EXCEPTION '[ERROR] LeaveTime can not be NULL';
+		END IF;
+		
+		Days := extract(day from t_LeaveTime - t_ArrivalTime);
+		CASE
+			WHEN Days BETWEEN 0 AND 30 THEN
+				msg := 'Short';
+			WHEN Days BETWEEN 30 AND 100 THEN
+				msg := 'Normal';
+			WHEN Days BETWEEN 100 AND 150 THEN
+				msg := 'Long';
+			ELSE
+				msg := 'Very long';
+		END CASE;
+		
+		RETURN msg;
+	END;
+	$_$;
+
+
+ALTER FUNCTION public.fc_porttimechecker(integer) OWNER TO postgres;
+
+--
+-- Name: fc_timechecker(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.fc_timechecker() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+	BEGIN
+		CASE
+		WHEN TG_OP = 'INSERT' THEN
+			-- 系统中无记录，即为首条记录
+			IF ((SELECT COUNT(*) FROM tb_arrivals WHERE SeacraftID=NEW.SeacraftID) = 0)
+			THEN
+			
+				IF ((NEW.LeaveTime IS NOT NULL) AND (NEW.ArrivalTime::TIMESTAMP > NEW.LeaveTime::TIMESTAMP)) THEN
+					raise notice '[ERROR-1] The previous record is incomplete';
+					RETURN NULL;
+				END IF;
+				
+			END IF;
+		
+			-- 不是首条记录
+			-- 与上条记录做对比
+			IF (((SELECT LeaveTime::TIMESTAMP 
+							FROM tb_arrivals 
+							WHERE SeacraftID=NEW.SeacraftID
+							ORDER BY LeaveTime DESC
+							LIMIT 1) IS NULL)
+					OR
+					((SELECT LeaveTime::TIMESTAMP 
+							FROM tb_arrivals 
+							WHERE SeacraftID=NEW.SeacraftID
+							ORDER BY LeaveTime DESC
+							LIMIT 1) > NEW.ArrivalTime::TIMESTAMP)) THEN
+					raise notice '[ERROR-2] Time conflict, unable to add this record';
+					RETURN NULL;
+			END IF;
+			
+			-- 再与自身作对比
+			IF ((NEW.LeaveTime IS NOT NULL) AND (NEW.ArrivalTime::TIMESTAMP > NEW.LeaveTime::TIMESTAMP)) THEN
+				raise notice '[ERROR-3] The leave time cannot be less than the arrival time';
+				RETURN NULL;
+			END IF;
+	
+
+		WHEN TG_OP = 'UPDATE' THEN
+			IF ((NEW.LeaveTime IS NOT NULL) AND (NEW.ArrivalTime::TIMESTAMP > NEW.LeaveTime::TIMESTAMP)) THEN
+				raise notice '[ERROR-4] The leave time cannot be less than the arrival time';
+				RETURN NULL;
+			END IF;
+		END CASE;
+	
+ 	RETURN NEW;
+	END
+	$$;
+
+
+ALTER FUNCTION public.fc_timechecker() OWNER TO postgres;
+
+--
+-- Name: get_arrival_num(integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.get_arrival_num(integer) RETURNS character varying
+    LANGUAGE sql STRICT
+    AS $_$SELECT to_char(ArrivalTime, 'yyyy') 
+						|| to_char(ArrivalTime, 'mm') 
+						|| to_char(ArrivalTime, 'dd')
+						|| lpad(IDArrival::TEXT, 5, '0')::TEXT 
+						|| lpad(PortID::TEXT, 3, '0')::TEXT 
+		FROM tb_arrivals WHERE IDArrival=$1$_$;
+
+
+ALTER FUNCTION public.get_arrival_num(integer) OWNER TO postgres;
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -299,7 +483,6 @@ COPY public.tb_arrivals (idarrival, portid, seacraftid, purpose, arrivaltime, le
 12	17	15	\N	2020-05-01 14:38:42	2020-06-09 09:31:54
 13	3	10	\N	2020-01-12 14:32:17	2020-07-04 23:01:19
 14	10	13	\N	2020-02-12 14:31:04	2020-09-07 10:39:49
-15	9	1	\N	2020-02-26 16:47:19	2020-06-02 00:33:13
 16	23	14	\N	2020-06-06 05:15:37	2020-09-05 14:12:02
 17	16	3	\N	2020-03-27 01:15:57	2020-08-29 10:10:59
 18	21	10	\N	2020-01-08 22:30:44	2020-06-14 12:16:34
@@ -328,7 +511,6 @@ COPY public.tb_arrivals (idarrival, portid, seacraftid, purpose, arrivaltime, le
 41	15	3	\N	2000-01-05 07:07:47	2000-08-01 14:59:20
 42	3	13	\N	2000-02-12 22:47:35	2000-04-27 06:08:17
 43	3	14	\N	2000-02-09 16:19:40	2000-07-02 15:20:52
-44	12	8	\N	2000-01-01 15:10:09	2000-08-01 10:45:17
 45	1	13	\N	2000-01-20 08:10:43	2000-07-11 08:33:03
 46	4	12	\N	2000-02-14 10:12:01	2000-07-19 07:13:40
 47	19	8	\N	2000-01-14 14:24:00	2000-06-20 18:04:09
@@ -1305,6 +1487,7 @@ COPY public.tb_arrivals (idarrival, portid, seacraftid, purpose, arrivaltime, le
 1018	2	7	\N	2000-01-23 14:22:45	2000-08-04 00:40:10
 1019	5	11	\N	2000-01-06 11:02:01	2000-07-30 19:11:48
 1020	8	10	\N	2000-01-12 10:16:55	2000-07-26 04:21:21
+15	9	1	\N	2020-02-26 16:47:19	2020-07-02 00:33:13
 \.
 
 
@@ -1386,7 +1569,6 @@ COPY public.tb_ports (idport, country, nameport, price, levelid) FROM stdin;
 
 COPY public.tb_seacrafts (idseacraft, nameseacraft, displacement, regportid, typeid, captainid) FROM stdin;
 1	Henry's LLC	550020	19	3	6
-2	Marjorie Inc.	290252	9	1	13
 3	Russell LLC	216511	25	3	2
 4	Bradley Logistic Inc.	640207	3	1	20
 5	Russell Brothers Technology LLC	548642	24	2	11
@@ -1405,6 +1587,7 @@ COPY public.tb_seacrafts (idseacraft, nameseacraft, displacement, regportid, typ
 18	Ernest Software LLC	874330	19	3	12
 19	Ryan LLC	226851	10	4	19
 20	Harris's Food Inc.	440595	17	1	6
+2	Marjorie Inc.	291252	9	1	13
 \.
 
 
