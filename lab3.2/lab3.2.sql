@@ -71,18 +71,18 @@ select count(*) from pg_toast.pg_toast_162078;
 -------------------------------------------------------------------------------------------------------
 BEGIN;
 SELECT * FROM tb_jsonb WHERE iddata=51989;
-SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
 SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
-select count(*) from pg_toast.pg_toast_162078;
-select chunk_id,chunk_seq, chunk_data, length(chunk_data) from pg_toast.pg_toast_162078;
+SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
 
 UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
 
 SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
-SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
-select count(*) from pg_toast.pg_toast_162078;
+SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
+
 ROLLBACK;
 -------------------------------------------------------------------------------------------------------
 
@@ -90,33 +90,37 @@ ROLLBACK;
 BEGIN;
 ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
 SELECT * FROM tb_jsonb WHERE iddata=51989;
-SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
 SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
-select count(*) from pg_toast.pg_toast_162078; -- 511805
+SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
 
 UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
 
 SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
-SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
-select count(*) from pg_toast.pg_toast_162078; -- 511805
+SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
+SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
 ROLLBACK;
 -------------------------------------------------------------------------------------------------------
 
 
 BEGIN;
-SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
 SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
-select count(*) from pg_toast.pg_toast_162078; -- 511805
+SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
 
 UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
 
 SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4035007 [+10] Byte
-SELECT pg_table_size('tb_jsonb');  -- 1206444032 [+4136960] Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1151 MB MB [+3.9453125 MB]
-select count(*) from pg_toast.pg_toast_162078; -- 511805
+SELECT pg_table_size('tb_jsonb');  -- 1112997888 Byte [+4186112 Byte]
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1061 MB
+SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
 ROLLBACK;
 
 -------------------------------------------------------------------------------------------------------
@@ -125,15 +129,19 @@ ROLLBACK;
 BEGIN;
 ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
 
-SELECT pg_table_size('tb_jsonb');  -- 1186045952 Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1131 MB
+SELECT pg_table_size('tb_jsonb');  -- 1117184000 Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1065 MB
 SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
 
 UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
 
-SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 15845197 [+11810200] Byte
-SELECT pg_table_size('tb_jsonb');  -- 1202307072 [+16261120] Byte
-SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB [+16 MB]
+SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 15845197 [+] Byte
+SELECT pg_table_size('tb_jsonb');  -- 1133617152 [+16433152] Byte
+SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1081 MB [+ MB]
+SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
 ROLLBACK;
 
 -------------------------------------------------------------------------------------------------------

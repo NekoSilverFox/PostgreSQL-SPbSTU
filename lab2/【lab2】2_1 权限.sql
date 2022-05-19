@@ -31,7 +31,7 @@ SELECT * FROM VW_Ports;
 
 
 ----------------------------- управления доступом -----------------------------
--- CREATE USER fox;
+-- CREATE USER test;
 CREATE ROLE test;
 ALTER ROLE test PASSWORD '123';
 ALTER ROLE test LOGIN;
@@ -46,6 +46,11 @@ CREATE ROLE update_vw_test;
 GRANT UPDATE (NameSeacraft) ON vw_seacrafts TO update_vw_test;
 GRANT update_vw_test TO test;
 
+SELECT * FROM information_schema.table_privileges WHERE grantee='test';
+SELECT * FROM information_schema.routine_privileges WHERE grantee='test';
+SELECT * FROM information_schema.usage_privileges WHERE grantee='test';
+SELECT * FROM INFORMATION_SCHEMA.role_table_grants WHERE grantee='test';
+select * from tb_portlevels;
 
 -- For user `test`
 SELECT * FROM tb_portlevels;

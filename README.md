@@ -1013,6 +1013,14 @@ ALTER ROLE test PASSWORD '123';
 
         
 
+        Вывод макрокоманды psql/dp (флаги привилегий пользователей):
+
+        <img src="doc/pic/README/image-20220519070952347.png" alt="image-20220519070952347" style="zoom:50%;" />
+
+        
+
+        
+
         Используйте соответствующую команду SQL для проверки пользователя в соответствии с предоставленными ему привилегиями
 
         Вывод:
@@ -1045,6 +1053,14 @@ ALTER ROLE test PASSWORD '123';
         GRANT SELECT, UPDATE ON tb_typeseacraft TO test;
         ```
 
+        
+
+        Вывод макрокоманды psql/dp (флаги привилегий пользователей):
+
+        <img src="doc/pic/README/image-20220519071058630.png" alt="image-20220519071058630" style="zoom:50%;" />
+
+        
+
         Используйте соответствующую команду SQL для проверки пользователя в соответствии с предоставленными ему привилегиями
 
         Вывод:
@@ -1066,11 +1082,19 @@ ALTER ROLE test PASSWORD '123';
         GRANT SELECT ON tb_ports TO test;
         ```
 
+        
+
+        Вывод макрокоманды psql/dp (флаги привилегий пользователей):
+
+        <img src="doc/pic/README/image-20220519071132857.png" alt="image-20220519071132857" style="zoom:50%;" />
+
+        
+
         Используйте соответствующую команду SQL для проверки пользователя в соответствии с предоставленными ему привилегиями
 
         Вывод:
 
-        ![image-20220517155042562](doc/pic/README/image-20220517155042562.png)
+        <img src="doc/pic/README/image-20220517155042562.png" alt="image-20220517155042562" style="zoom:50%;" />
 
         
 
@@ -1092,11 +1116,17 @@ ALTER ROLE test PASSWORD '123';
 
         
 
+        Вывод макрокоманды psql/dp (флаги привилегий пользователей):
+        
+        <img src="doc/pic/README/image-20220519071625127.png" alt="image-20220519071625127" style="zoom:50%;" />
+        
+        
+        
         Вывод:
         
         Когда у пользователя есть разрешение, представление доступно:
         
-        <img src="doc/pic/README/image-20220324232945852.png" alt="image-20220324232945852" style="zoom:50%;" />
+        <img src="doc/pic/README/image-20220324232945852.png" alt="image-20220324232945852" style="zoom: 33%;" />
         
         
         
@@ -1109,15 +1139,33 @@ ALTER ROLE test PASSWORD '123';
     - Создать стандартную роль уровня базы данных, присвоить ей право доступа (`UPDATE` на некоторые столбцы) к одному из представлений, назначить новому пользователю созданную роль.
 
         ```sql
+        CREATE OR REPLACE VIEW VW_Seacrafts
+        AS
+        	SELECT idseacraft, nameseacraft, nametypeseacraft, displacement, NamePort, namecaptain
+        		FROM tb_seacrafts
+        			INNER JOIN tb_typeseacraft
+        				ON tb_typeseacraft.idtypeseacraft=tb_seacrafts.typeid
+        			INNER JOIN tb_ports
+        				ON tb_ports.IDPort=tb_seacrafts.RegPortID
+        			INNER JOIN tb_captains
+        				ON tb_captains.idcaptain=tb_seacrafts.captainid
+        		ORDER BY idseacraft ASC;
+        
         CREATE ROLE update_vw_test;
         GRANT UPDATE (NameSeacraft) ON vw_seacrafts TO update_vw_test;
         GRANT update_vw_test TO test;
         ```
-
         
-
+        
+        
+        Вывод макрокоманды psql/dp (флаги привилегий пользователей):
+        
+        <img src="doc/pic/README/image-20220519071943083.png" alt="image-20220519071943083" style="zoom:50%;" />
+        
+        
+        
         Вывод:
-
+        
         <img src="doc/pic/README/image-20220324235621158.png" alt="image-20220324235621158" style="zoom:50%;" />
         
         <img src="doc/pic/README/image-20220325000112121.png" alt="image-20220325000112121" style="zoom:50%;" />
@@ -3364,6 +3412,19 @@ $$ LANGUAGE plpython3u;
 
 
 
+**PostgreSQL имеет следующие индексы:**
+
+| Имя индекса | Сценарии использования                                       |
+| ----------- | ------------------------------------------------------------ |
+| B-Tree      | Подходит для индексов, которые можно хранить последовательно (по умолчанию) |
+| Hash        | Могут обрабатывать только простые сравнения "равно".         |
+| GiST        | ЭТО архитектура индексирования, которая позволяет нам настраивать индексы в соответствии с потребностями и сценариями |
+| GIN         | Инвертированные индексы, которые работают с ключами, содержащими несколько значений |
+
+
+
+
+
 ==[1]== **Запрос к одной таблице, содержащий фильтрацию по нескольким полям.**
 
 ​    
@@ -5096,15 +5157,18 @@ postgres=# select * from pg_toast.pg_toast_162078;
     ```sql
     BEGIN;
     SELECT * FROM tb_jsonb WHERE iddata=51989;
-    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
     SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
+    SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+    SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
     
     UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
     
     SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
-    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
+    
     ROLLBACK;
     ```
 
@@ -5135,37 +5199,42 @@ postgres=# select * from pg_toast.pg_toast_162078;
     ```sql
     BEGIN;
     ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
-    
     SELECT * FROM tb_jsonb WHERE iddata=51989;
-    SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
+    SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
     SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 202 Byte
-    select count(*) from pg_toast.pg_toast_162078; -- 511805
+    SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+    SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
     
     UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"Bf AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=51989;
     
     SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=51989;  -- 230 Byte
-    SELECT pg_table_size('tb_jsonb');  -- 1202307072 Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB
-    select count(*) from pg_toast.pg_toast_162078; -- 511805
+    SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
+    SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+    SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
     ROLLBACK;
     ```
-
+    
     
     
 3. **==[EXTENDED]== Сравнить изменение объема БД для актера с большим кол-вом ролей**
 
     ```sql
     BEGIN;
-    SELECT pg_table_size('tb_jsonb');  -- 1145241600 Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1092 MB
+    SELECT pg_table_size('tb_jsonb');  -- 1108811776 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1057 MB
     SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+    SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+    SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
     
     UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
     
-    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4035007 [+10]  Byte
-    SELECT pg_table_size('tb_jsonb');  -- 1149378560 [+4136960]  Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1096 MB [+3.9453125 MB]
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4035007 [+10] Byte
+    SELECT pg_table_size('tb_jsonb');  -- 1112997888 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1061 MB
+    SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+    SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
     ROLLBACK;
     ```
 
@@ -5199,22 +5268,35 @@ postgres=# select * from pg_toast.pg_toast_162078;
     BEGIN;
     ALTER TABLE tb_jsonb ALTER imdata SET STORAGE EXTERNAL;
     
-    SELECT pg_table_size('tb_jsonb');  -- 1186045952 Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1131 MB
+    SELECT pg_table_size('tb_jsonb');  -- 1117184000 Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1065 MB
     SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 4034997 Byte
+    SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+    SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
     
     UPDATE tb_jsonb SET imdata=jsonb_set(imdata::jsonb, '{name}', '"David AAAAAAAAAAAAAAAAAAAAAAAAA"'::jsonb) WHERE iddata=3789;
     
-    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 15845197 [+11810200] Byte
-    SELECT pg_table_size('tb_jsonb');  -- 1202307072 [+16261120] Byte
-    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1147 MB [+16 MB]
+    SELECT iddata, pg_column_size(imdata) , imdata, imdata->>'{name}' FROM tb_jsonb WHERE iddata=3789;  -- 15845197 [+] Byte
+    SELECT pg_table_size('tb_jsonb');  -- 1133617152 [+16433152] Byte
+    SELECT pg_size_pretty(pg_table_size('tb_jsonb'));  -- 1081 MB [+ MB]
+    SELECT SUM(size) FROM pg_ls_waldir(); -- 1056964608 Byte
+    SELECT pg_size_pretty(SUM(size)) FROM pg_ls_waldir(); -- 1008 MB
     ROLLBACK;
     ```
 
     
-
+    
     ##### Результат
-
+    
+    | Типа         | Длина jsonb  | Размер таблицы до изменеия | Размер таблицы после изменения | Прирост размера таблицы | размер WAL журнала транзакций до изменеия | размер WAL журнала транзакций после изменения |
+    | ------------ | ------------ | -------------------------- | ------------------------------ | ----------------------- | ----------------------------------------- | --------------------------------------------- |
+    | ==EXTENDED== | 202 Byte     | 1108811776 Byte (1057 MB)  | 1108811776 Byte (1057 MB)      | +0 Byte                 | 1056964608 Byte (1008 MB)                 | 1108811776 Byte (1057 MB)                     |
+    | ==EXTERNAL== | 202 Byte     | 1108811776 Byte (1057 MB)  | 1108811776 Byte (1057 MB)      | +0 Byte                 | 1056964608 Byte (1008 MB)                 | 1056964608 Byte (1008 MB)                     |
+    | ==EXTENDED== | 4034997 Byte | 1108811776 Byte (1057 MB)  | 1112997888 Byte (1061 MB)      | +4186112 Byte           | 1056964608 Byte (1008 MB)                 | 1056964608 Byte (1008 MB)                     |
+    | ==EXTERNAL== | 4034997 Byte | 1117184000 Byte (1065 MB)  | 1112997888 Byte (1081 MB)      | +16433152 Byte          | 1056964608 Byte (1008 MB)                 | 1056964608 Byte (1008 MB)                     |
+    
+    
+    
     <p>
     <!--
         如果策略允许压缩，则TOAST优先选择压缩。
@@ -5222,7 +5304,7 @@ postgres=# select * from pg_toast.pg_toast_162078;
         修改TOAST策略，不会影响现有数据的存储方式。
     -->
     </p>
-
+    
     - Если политика разрешает сжатие, TOAST предпочитает сжатие.
     - Хранение вне ряда включается, когда объем данных превышает примерно 2 КБ, независимо от того, сжаты они или нет.
     - Изменение политики TOAST **не** повлияет на способ хранения существующих данных.
